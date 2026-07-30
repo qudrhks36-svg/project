@@ -31,6 +31,15 @@
   .btn:hover { background: #33475a; }
   .btn.active { background: linear-gradient(180deg,#5fd0ff,#2b9fe0); color: #00222e; border-color: #7fdcff; }
 
+  /* ---- Level bar (mobile RPG-style progression) ---- */
+  #levelBar { width: 900px; display: flex; align-items: center; gap: 8px; color: #fff; font-size: 12px; }
+  .lvChip {
+    background: linear-gradient(135deg,#ffd54f,#ff8f00); color: #3a2400; font-weight: 900;
+    padding: 3px 10px; border-radius: 20px; white-space: nowrap;
+  }
+  #expTrack { flex: 1; height: 8px; background: rgba(255,255,255,0.12); border-radius: 6px; overflow: hidden; }
+  #expFill { height: 100%; width: 0%; background: linear-gradient(90deg,#5fd0ff,#2b9fe0); transition: width 0.25s; }
+
   #stageWrap { position: relative; border-radius: 10px; overflow: hidden; box-shadow: 0 14px 46px rgba(0,0,0,0.65); }
   canvas { background: #123; display: block; }
 
@@ -66,9 +75,11 @@
     border: 1px solid rgba(255,255,255,0.06);
   }
   .dexCard.caught { border-color: var(--rc, #4fc3f7); box-shadow: 0 0 10px -2px var(--rc, #4fc3f7); }
+  .dexCard.bossCardMini { border-color: rgba(255,82,82,0.4); }
   .dexCard .name { font-size: 10.3px; line-height: 1.2; min-height: 24px; }
   .dexCard .stars { font-size: 9px; letter-spacing: 1px; }
   .dexCard .best { font-size: 8.7px; color: #ffd54f; }
+  .dexImg { display: block; margin: 0 auto; image-rendering: -webkit-optimize-contrast; }
   #dexClose { align-self: flex-end; }
 
   /* ---- Catch reveal (hero shot) ---- */
@@ -81,13 +92,22 @@
     border-radius: 16px; padding: 14px 22px 16px; color: #fff; text-align: center;
     border: 1px solid rgba(255,255,255,0.15); backdrop-filter: blur(2px);
   }
+  #catchCard.bossCard {
+    border-color: #ff5252; box-shadow: 0 0 34px rgba(255,60,60,0.65);
+    background: linear-gradient(180deg, rgba(46,6,6,0.55), rgba(10,2,2,0.95));
+  }
   #catchCard .stars { font-size: 20px; letter-spacing: 3px; color: #ffd54f; text-shadow: 0 0 10px rgba(255,213,79,0.7); }
   #catchCard h2 { margin: 2px 0; font-size: 30px; letter-spacing: 1px; text-shadow: 0 2px 8px rgba(0,0,0,0.7); }
   #catchCard .sizeRow { font-size: 22px; color: #7fe0ff; font-weight: bold; }
   #catchCard .pointsRow { font-size: 13px; color: #ffd54f; margin-top: 2px; }
-  #catchCard .newTag {
+  .newTag {
     display: inline-block; background: #ff5252; color: #fff; font-size: 11px; font-weight: bold;
-    padding: 2px 8px; border-radius: 10px; margin-bottom: 4px; letter-spacing: 1px;
+    padding: 2px 8px; border-radius: 10px; margin: 0 3px 4px; letter-spacing: 1px;
+  }
+  #trophyTag {
+    display: none; background: linear-gradient(135deg,#ffd54f,#ff8f00); color: #3a2400;
+    font-size: 11px; font-weight: 900; padding: 2px 10px; border-radius: 10px; margin: 0 3px 4px;
+    letter-spacing: 1px; box-shadow: 0 0 10px rgba(255,193,7,0.7);
   }
   #failCard {
     width: 60%; margin-bottom: 22px; background: rgba(30,10,10,0.75); border-radius: 16px;
@@ -100,12 +120,47 @@
     color: #ff5252; font-size: 26px; font-weight: 900; letter-spacing: 1px;
     text-shadow: 0 0 14px rgba(255,0,0,0.8); display: none; z-index: 14;
   }
+  #finalStandWarning {
+    position: absolute; left: 50%; top: 34%; transform: translate(-50%,-50%);
+    color: #ffee00; font-size: 30px; font-weight: 900; letter-spacing: 1px;
+    text-shadow: 0 0 18px rgba(255,238,0,0.9); display: none; z-index: 15;
+  }
+  #bossBanner {
+    position: absolute; left: 0; right: 0; top: 0; display: none; z-index: 18;
+    color: #fff; text-align: center; font-weight: 900; font-size: 21px; letter-spacing: 1px;
+    padding: 10px; text-shadow: 0 2px 6px rgba(0,0,0,0.8);
+    background: linear-gradient(180deg, rgba(170,0,0,0.85), rgba(70,0,0,0.35));
+    animation: bossBannerFlash 0.55s ease-in-out infinite alternate;
+  }
+  @keyframes bossBannerFlash {
+    from { background-color: rgba(170,0,0,0.85); }
+    to   { background-color: rgba(255,45,45,0.95); }
+  }
+  #stageWrap.bossMode::after {
+    content: ''; position: absolute; inset: 0; pointer-events: none;
+    box-shadow: inset 0 0 90px 14px rgba(255,25,25,0.55);
+    animation: bossPulse 1.1s ease-in-out infinite;
+  }
+  @keyframes bossPulse { 0%,100% { opacity: 0.5; } 50% { opacity: 1; } }
+
+  /* ---- Mobile-style bottom action bar ---- */
+  #mobileBar { width: 900px; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  #powerGaugeWrap { width: 230px; height: 10px; background: rgba(255,255,255,0.12); border-radius: 6px; overflow: hidden; }
+  #powerFill { height: 100%; width: 0%; background: linear-gradient(90deg,#ffd54f,#ff5252); }
+  #actionBtn {
+    width: 84px; height: 84px; border-radius: 50%; border: none; cursor: pointer;
+    background: radial-gradient(circle at 34% 30%, #8fe6ff, #2b9fe0 60%, #146a92);
+    color: #00222e; font-weight: 900; font-size: 14px;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.5), inset 0 2px 6px rgba(255,255,255,0.45);
+    user-select: none; touch-action: none;
+  }
+  #actionBtn:active { transform: scale(0.94); }
 </style>
 </head>
 <body>
 <div id="wrap">
   <div id="topbar">
-    <button class="btn" id="dexBtn">📖 도감 (<span id="dexCountTop">0</span>/80)</button>
+    <button class="btn" id="dexBtn">📖 도감 (<span id="dexCountTop">0</span>/<span id="dexTotalCount">80</span>)</button>
     <div class="chip">🐟 <b id="totalCatches">0</b>마리 &nbsp;·&nbsp; ⭐ <b id="totalScore">0</b>점</div>
     <div>
       <button class="btn active" id="locLake">🏞️ 호수</button>
@@ -113,14 +168,22 @@
     </div>
   </div>
 
+  <div id="levelBar">
+    <div class="lvChip">Lv.<span id="lvNum">1</span></div>
+    <div id="expTrack"><div id="expFill"></div></div>
+  </div>
+
   <div id="stageWrap">
     <canvas id="game" width="900" height="560"></canvas>
-    <div id="msg">스페이스바를 눌러 캐스팅하세요</div>
+    <div id="msg">스페이스바 또는 버튼으로 캐스팅하세요</div>
     <div id="runWarning">! 물고기가 저항한다 !</div>
+    <div id="finalStandWarning">필사의 저항!!</div>
+    <div id="bossBanner">⚠️ 초대형 어종 출현 ⚠️</div>
 
     <div id="catchReveal">
       <div id="catchCard">
         <div id="newTag" class="newTag" style="display:none;">NEW!</div>
+        <div id="trophyTag">★ 대물 ★</div>
         <div class="stars" id="popStars">★★★☆☆</div>
         <h2 id="popName">이름</h2>
         <div class="sizeRow" id="popSize">32.4cm</div>
@@ -160,14 +223,20 @@
       <path d="M100 320 C95 280,100 245,120 220 L134 236 C118 256,116 285,120 320 Z" fill="#e8b57a" stroke="#5c4626" stroke-width="2"/>
     </svg>
   </div>
+
+  <div id="mobileBar">
+    <div id="powerGaugeWrap"><div id="powerFill"></div></div>
+    <button id="actionBtn">낚시</button>
+  </div>
 </div>
 
 <div id="dexOverlay">
   <div id="dexPanel">
     <h2>물고기 도감</h2>
     <div id="dexTabs">
-      <button class="btn active" id="tabLake">호수 (40)</button>
-      <button class="btn" id="tabSea">먼바다 (40)</button>
+      <button class="btn active" id="tabLake">호수 (<span id="tabLakeCount">0</span>)</button>
+      <button class="btn" id="tabSea">먼바다 (<span id="tabSeaCount">0</span>)</button>
+      <button class="btn" id="tabSpecial">특수 (<span id="tabSpecialCount">0</span>)</button>
       <button class="btn" id="dexClose" style="margin-left:auto;">닫기</button>
     </div>
     <div id="dexGrid"></div>
@@ -195,6 +264,10 @@ const LAKE_FISH = [
   ["참마자","common",12,22,"slender","sand"],
   ["미꾸리","common",8,15,"slender","ink"],
   ["미꾸라지","common",10,20,"slender","ink"],
+  ["떡붕어","common",20,40,"oval","gold"],
+  ["퉁가리","common",6,12,"spiny","sand",null,true],
+  ["배가사리","common",8,15,"slender","sand"],
+  ["칼납자루","common",5,9,"oval","rose"],
   ["메기","uncommon",30,60,"slender","charcoal",null,true],
   ["동자개(빠가사리)","uncommon",15,30,"slender","sand",null,true],
   ["블루길","uncommon",10,25,"oval","teal"],
@@ -207,6 +280,9 @@ const LAKE_FISH = [
   ["얼룩동사리","uncommon",10,20,"spiny","olive","spots"],
   ["꺽지","uncommon",12,22,"spiny","olive"],
   ["꺽저기","uncommon",8,15,"spiny","olive"],
+  ["어름치","uncommon",15,30,"torpedo","silver","spots"],
+  ["눈동자개","uncommon",15,25,"slender","charcoal",null,true],
+  ["대농갱이","uncommon",20,35,"slender","sand",null,true],
   ["쏘가리","rare",25,55,"spiny","sand","spots"],
   ["뱀장어","rare",40,90,"slender","ink"],
   ["은어","rare",15,30,"torpedo","silver"],
@@ -215,10 +291,13 @@ const LAKE_FISH = [
   ["무지개송어","rare",25,50,"torpedo","rose","lateral"],
   ["눈불개","rare",20,35,"oval","copper"],
   ["가물치","rare",40,85,"slender","charcoal","spots"],
+  ["쉬리","rare",8,15,"torpedo","rose","lateral"],
+  ["감돌고기","rare",10,18,"torpedo","olive"],
   ["자라","legendary",20,45,"turtle","olive"],
   ["초어","legendary",50,100,"oval","olive"],
   ["백련어(대두어)","legendary",50,110,"oval","silver"],
   ["미유기","legendary",15,28,"slender","charcoal",null,true],
+  ["미호종개","legendary",8,15,"slender","sand"],
 ];
 
 const SEA_FISH = [
@@ -238,6 +317,10 @@ const SEA_FISH = [
   ["도다리","common",18,30,"flat","sand"],
   ["양태","common",25,45,"flat","sand"],
   ["서대","common",20,35,"flat","sand"],
+  ["용치놀래기","common",15,25,"oval","teal"],
+  ["문치가자미","common",20,35,"flat","sand"],
+  ["삼세기","common",15,25,"spiny","charcoal"],
+  ["임연수어","common",25,45,"torpedo","olive","backwave"],
   ["고등어","uncommon",25,45,"torpedo","bluesteel","backwave"],
   ["전갱이","uncommon",20,40,"torpedo","silver","lateral"],
   ["삼치","uncommon",40,80,"torpedo","bluesteel","spots"],
@@ -250,6 +333,9 @@ const SEA_FISH = [
   ["오징어","uncommon",20,35,"squid","silver"],
   ["한치","uncommon",20,35,"squid","silver"],
   ["꽃게","uncommon",10,20,"crab","sunsetOrange"],
+  ["병어","uncommon",20,35,"oval","silver"],
+  ["참조기","uncommon",15,30,"oval","gold"],
+  ["부세","uncommon",20,40,"oval","gold"],
   ["참돔","rare",35,70,"oval","rose","spots"],
   ["돌돔","rare",30,60,"oval","charcoal","stripesV"],
   ["벵에돔","rare",30,55,"oval","charcoal"],
@@ -258,10 +344,22 @@ const SEA_FISH = [
   ["대구","rare",50,90,"torpedo","sand","spots"],
   ["흑돔","rare",30,55,"oval","charcoal"],
   ["아귀","rare",40,80,"flat","charcoal","spots"],
+  ["민어","rare",40,80,"oval","sand"],
+  ["능성어","rare",40,80,"oval","charcoal","spots"],
   ["방어","legendary",60,130,"torpedo","deepBlue","lateral"],
   ["부시리","legendary",60,120,"torpedo","deepBlue","lateral"],
-  ["참다랑어","legendary",100,250,"torpedo","deepBlue","lateral"],
   ["자바리(다금바리)","legendary",50,100,"oval","charcoal","spots"],
+  ["옥돔","legendary",25,45,"oval","rose"],
+];
+
+/* ----- Special mega fish: unique catching mechanics, sea only, rare encounter ----- */
+const BOSS_FISH = [
+  ["참다랑어","boss",150,300,"torpedo","deepBlue","lateral"],
+  ["백상아리","boss",300,550,"shark","charcoal"],
+  ["청상아리","boss",250,420,"shark","deepBlue"],
+  ["범고래","boss",400,700,"whale","charcoal"],
+  ["향고래","boss",600,1500,"whale","deepBlue"],
+  ["대왕오징어","boss",300,700,"giant_squid","ink"],
 ];
 
 const COLOR_PRESETS = {
@@ -280,23 +378,25 @@ const COLOR_PRESETS = {
   ink:       { base:"#2a2a2e", light:"#5c5c62", dark:"#131315" },
 };
 
-/* ----- Difficulty: tougher timing/tension ----- */
+/* ----- Difficulty: tougher timing/tension. 'boss' = special mega fish tier ----- */
 const RARITY = {
   common:    { label:"COMMON",    color:"#b0bec5", stars:1, points:12,  hookWindow:0.68, zoneWidthRatio:0.27, needleSpeed:1.35, tensionRate:9.5,  gain:11 },
   uncommon:  { label:"UNCOMMON",  color:"#4fc3f7", stars:2, points:36,  hookWindow:0.55, zoneWidthRatio:0.21, needleSpeed:1.7,  tensionRate:10.5, gain:9.5 },
   rare:      { label:"RARE",      color:"#ba68c8", stars:3, points:95,  hookWindow:0.44, zoneWidthRatio:0.16, needleSpeed:2.05, tensionRate:11.5, gain:8.5 },
   legendary: { label:"LEGENDARY", color:"#ffd54f", stars:5, points:300, hookWindow:0.34, zoneWidthRatio:0.115,needleSpeed:2.5,  tensionRate:13,   gain:7.5 },
+  boss:      { label:"BOSS",      color:"#ff3d3d", stars:5, points:900, hookWindow:0.3,  zoneWidthRatio:0.09, needleSpeed:2.3,  tensionRate:9,    gain:6.5 },
 };
 const RARITY_WEIGHT = { common:50, uncommon:28, rare:15, legendary:7 };
+const BOSS_CHANCE_BASE = 0.045;
 
 /* =========================================================
    Persistence
 ========================================================= */
-const DEX_KEY = 'fishingDexV2';
+const DEX_KEY = 'fishingDexV3';
 let dex = JSON.parse(localStorage.getItem(DEX_KEY) || '{}');
 function saveDex() { localStorage.setItem(DEX_KEY, JSON.stringify(dex)); }
-let totalScore = parseInt(localStorage.getItem('fishingScoreV2') || '0', 10);
-function saveScore() { localStorage.setItem('fishingScoreV2', String(totalScore)); }
+let totalScore = parseInt(localStorage.getItem('fishingScoreV3') || '0', 10);
+function saveScore() { localStorage.setItem('fishingScoreV3', String(totalScore)); }
 
 /* =========================================================
    Canvas & core state
@@ -309,17 +409,44 @@ const HORIZON = H * 0.4;
 let spot = 'lake';
 let lastTime = performance.now();
 const rod = { tipX: W - 60, tipY: H - 210 };
-let bobber = { x: W/2, y: HORIZON + 60, targetX: W/2, targetY: HORIZON + 60 };
+let bobber = { x: W/2, y: HORIZON + 60, targetX: W/2, targetY: HORIZON + 60, _power: 0 };
 
 let state = 'idle';
 let waitTimer = 0, biteTimer = 0, resultTimer = 0, shake = 0;
 let currentFish = null;
-let reel = { progress:0, tension:0, needleT:0, zoneStart:0.4, zoneWidth:0.3, flashT:0, runActive:false, runTimer:0, nextRunAt:0 };
+let reel = {
+  progress:0, tension:0, needleT:0, zoneStart:0.4, zoneWidth:0.3, flashT:0,
+  runActive:false, runTimer:0, nextRunAt:0, needleDir:1,
+  finalStand:false, finalStandDone:false, _finalStandStarted:false, _finalStandTimer:0
+};
 let resultData = null;
 
 let spaceJustPressed = false;
 window.addEventListener('keydown', e => {
   if (e.key === ' ') { e.preventDefault(); if (!e.repeat) spaceJustPressed = true; }
+});
+
+/* ---- mobile action button: press-and-hold on idle charges cast power ---- */
+let charging = false;
+let castPower = 0;
+const actionBtn = document.getElementById('actionBtn');
+function startCastWithPower() {
+  const power = castPower;
+  castPower = 0;
+  document.getElementById('powerFill').style.width = '0%';
+  startCast(power);
+}
+actionBtn.addEventListener('pointerdown', (e) => {
+  e.preventDefault();
+  if (state === 'idle') charging = true;
+  else spaceJustPressed = true;
+});
+actionBtn.addEventListener('pointerup', (e) => {
+  e.preventDefault();
+  if (charging) { charging = false; startCastWithPower(); }
+});
+actionBtn.addEventListener('pointerleave', () => {
+  if (charging) { charging = false; startCastWithPower(); }
 });
 
 function pool() { return spot === 'lake' ? LAKE_FISH : SEA_FISH; }
@@ -339,39 +466,53 @@ function starsStr(n) { return '★'.repeat(n) + '☆'.repeat(5-n); }
 /* =========================================================
    Game flow
 ========================================================= */
-function startCast() {
+function startCast(power) {
+  power = power || 0;
   state = 'casting';
-  bobber.targetX = W * 0.28 + Math.random() * W * 0.46;
+  const reach = 0.46 + (power/100)*0.12;
+  bobber.targetX = W * 0.28 + Math.random() * W * reach;
   bobber.targetY = HORIZON + 30 + Math.random() * (H - HORIZON - 90);
   bobber._sx = rod.tipX; bobber._sy = rod.tipY; bobber._t = 0;
+  bobber._power = power;
   setMsg("풍덩! 입질을 기다리는 중...");
 }
 function beginWaiting() { state = 'waiting'; waitTimer = 2 + Math.random() * 4.5; }
 
 function triggerBite() {
   state = 'bite';
-  const f = pickWeightedFish();
+  const bossChance = spot === 'sea' ? BOSS_CHANCE_BASE + (bobber._power/100)*0.03 : 0;
+  const isBoss = Math.random() < bossChance;
+  const f = isBoss ? BOSS_FISH[Math.floor(Math.random()*BOSS_FISH.length)] : pickWeightedFish();
   currentFish = fishDef(f);
   biteTimer = RARITY[currentFish.rarity].hookWindow;
-  shake = 8;
-  setMsg("지금이다! 스페이스바!");
+  shake = isBoss ? 18 : 8;
+  document.getElementById('bossBanner').style.display = isBoss ? 'block' : 'none';
+  setMsg(isBoss ? "!! 초대형 어종이다 – 지금이다 !!" : "지금이다! 탭하세요!");
 }
 
 function beginReeling() {
   state = 'reeling';
+  const isBoss = currentFish.rarity === 'boss';
   const conf = RARITY[currentFish.rarity];
-  reel.progress = 0; reel.tension = 0; reel.needleT = Math.random()*10;
+  reel.progress = 0; reel.tension = 0; reel.needleT = Math.random()*10; reel.needleDir = 1;
   reel.zoneWidth = conf.zoneWidthRatio;
   reel.zoneStart = Math.random() * (1 - reel.zoneWidth);
   reel.runActive = false; reel.runTimer = 0;
-  reel.nextRunAt = 1.4 + Math.random() * 1.6;
-  setMsg("타이밍 맞춰 스페이스바! 릴을 감으세요");
+  reel.nextRunAt = isBoss ? 0.9 + Math.random()*0.6 : 1.4 + Math.random()*1.6;
+  reel.finalStand = false; reel.finalStandDone = false; reel._finalStandStarted = false;
+  document.getElementById('bossBanner').style.display = 'none';
+  document.getElementById('stageWrap').classList.toggle('bossMode', isBoss);
+  setMsg(isBoss ? "필사적으로 버텨라!!" : "타이밍 맞춰 탭! 릴을 감으세요");
 }
 
 function catchSuccess() {
-  const size = (currentFish.minLen + Math.random()*(currentFish.maxLen-currentFish.minLen)).toFixed(1);
+  const isBoss = currentFish.rarity === 'boss';
   const conf = RARITY[currentFish.rarity];
-  const points = Math.round(conf.points * (0.7 + 0.6*(size-currentFish.minLen)/(currentFish.maxLen-currentFish.minLen+0.001)));
+  const size = (currentFish.minLen + Math.random()*(currentFish.maxLen-currentFish.minLen)).toFixed(1);
+  const sizeRatio = (size-currentFish.minLen)/(currentFish.maxLen-currentFish.minLen+0.001);
+  const isTrophy = !isBoss && sizeRatio >= 0.85;
+  let points = Math.round(conf.points * (0.7 + 0.6*sizeRatio));
+  if (isTrophy) points = Math.round(points * 1.5);
   totalScore += points; saveScore();
 
   const isNew = !dex[currentFish.name];
@@ -383,15 +524,18 @@ function catchSuccess() {
   dex[currentFish.name] = entry;
   saveDex(); updateTopStats();
 
-  resultData = { ok:true, name:currentFish.name, rarity:currentFish.rarity, size, points, isNew };
+  resultData = { ok:true, name:currentFish.name, rarity:currentFish.rarity, size, points, isNew, isTrophy, isBoss };
   showCatchReveal(resultData);
-  state = 'result'; resultTimer = 2.6;
+  state = 'result'; resultTimer = isBoss ? 3.4 : 2.6;
+  document.getElementById('stageWrap').classList.remove('bossMode');
 }
 
 function catchFail(reason) {
   resultData = { ok:false, reason };
   state = 'result'; resultTimer = 1.4;
-  showFailCard(reason === 'snapped' ? "줄이 끊어졌습니다!" : "놓쳤습니다...");
+  const text = reason === 'snapped' ? "줄이 끊어졌습니다!" : reason === 'escaped' ? "괴물이 사라졌다..." : "놓쳤습니다...";
+  showFailCard(text);
+  document.getElementById('stageWrap').classList.remove('bossMode');
 }
 
 function showCatchReveal(d) {
@@ -399,14 +543,17 @@ function showCatchReveal(d) {
   const card = document.getElementById('catchCard');
   document.getElementById('failCard').style.display = 'none';
   card.style.display = 'block';
+  card.classList.toggle('bossCard', !!d.isBoss);
   document.getElementById('newTag').style.display = d.isNew ? 'inline-block' : 'none';
+  document.getElementById('trophyTag').style.display = d.isTrophy ? 'inline-block' : 'none';
   document.getElementById('popStars').textContent = starsStr(RARITY[d.rarity].stars);
   document.getElementById('popStars').style.color = RARITY[d.rarity].color;
-  document.getElementById('popName').textContent = d.name;
+  document.getElementById('popName').textContent = (d.isBoss ? '🌊 ' : '') + d.name;
   document.getElementById('popSize').textContent = `${d.size}cm`;
   document.getElementById('popPoints').textContent = `+${d.points}점`;
   reveal.style.display = 'flex';
-  setTimeout(() => { reveal.style.display = 'none'; }, 2500);
+  clearTimeout(reveal._hideTimer);
+  reveal._hideTimer = setTimeout(() => { reveal.style.display = 'none'; }, d.isBoss ? 3600 : 2500);
 }
 function showFailCard(text) {
   const reveal = document.getElementById('catchReveal');
@@ -414,13 +561,19 @@ function showFailCard(text) {
   const fc = document.getElementById('failCard');
   fc.textContent = text; fc.style.display = 'block';
   reveal.style.display = 'flex';
-  setTimeout(() => { reveal.style.display = 'none'; }, 1300);
+  clearTimeout(reveal._hideTimer);
+  reveal._hideTimer = setTimeout(() => { reveal.style.display = 'none'; }, 1300);
 }
 
 function updateTopStats() {
   document.getElementById('dexCountTop').textContent = Object.keys(dex).length;
   document.getElementById('totalCatches').textContent = Object.values(dex).reduce((s,e)=>s+e.count,0);
   document.getElementById('totalScore').textContent = totalScore;
+  const lvThreshold = 500;
+  const lv = Math.floor(totalScore/lvThreshold) + 1;
+  const prog = (totalScore % lvThreshold) / lvThreshold * 100;
+  document.getElementById('lvNum').textContent = lv;
+  document.getElementById('expFill').style.width = prog + '%';
 }
 
 /* =========================================================
@@ -429,7 +582,12 @@ function updateTopStats() {
 function update(dt) {
   if (shake > 0) shake = Math.max(0, shake - dt*20);
   if (spaceJustPressed) { handleSpace(); spaceJustPressed = false; }
-  document.getElementById('runWarning').style.display = (state==='reeling' && reel.runActive) ? 'block' : 'none';
+  document.getElementById('runWarning').style.display = (state==='reeling' && reel.runActive && currentFish.rarity!=='boss') ? 'block' : 'none';
+
+  if (charging) {
+    castPower = Math.min(100, castPower + dt*160);
+    document.getElementById('powerFill').style.width = castPower + '%';
+  }
 
   if (state === 'casting') {
     bobber._t += dt * 1.8;
@@ -446,10 +604,12 @@ function update(dt) {
     biteTimer -= dt;
     bobber.y = bobber.targetY + Math.sin(performance.now()/55)*7;
     if (biteTimer <= 0) {
+      document.getElementById('bossBanner').style.display = 'none';
       setMsg("놓쳤습니다..."); state = 'idle';
-      setTimeout(()=>setMsg("스페이스바를 눌러 캐스팅하세요"), 1100);
+      setTimeout(()=>setMsg("스페이스바 또는 버튼으로 캐스팅하세요"), 1100);
     }
   } else if (state === 'reeling') {
+    const isBoss = currentFish.rarity === 'boss';
     const conf = RARITY[currentFish.rarity];
     reel.nextRunAt -= dt;
     if (!reel.runActive && reel.nextRunAt <= 0) {
@@ -457,20 +617,37 @@ function update(dt) {
     }
     if (reel.runActive) {
       reel.runTimer -= dt;
-      if (reel.runTimer <= 0) { reel.runActive = false; reel.nextRunAt = 2.2 + Math.random()*2; }
+      if (reel.runTimer <= 0) { reel.runActive = false; reel.nextRunAt = (isBoss?1.6:2.2) + Math.random()*2; }
     }
+    if (isBoss && !reel.finalStandDone && reel.progress >= 60) {
+      reel.finalStand = true;
+      if (!reel._finalStandStarted) {
+        reel._finalStandStarted = true;
+        reel._finalStandTimer = 2.4;
+        setMsg("!! 마지막 발악이다 – 버텨라 !!");
+      }
+      reel._finalStandTimer -= dt;
+      if (reel._finalStandTimer <= 0) {
+        reel.finalStandDone = true; reel.finalStand = false;
+        setMsg("필사적으로 버텨라!!");
+      }
+    }
+    document.getElementById('finalStandWarning').style.display = reel.finalStand ? 'block' : 'none';
+
+    const finalMul = reel.finalStand ? 1.8 : 1;
     const runMul = reel.runActive ? 1.9 : 1;
-    const speedMul = (1 + 0.7*(reel.progress/100)) * runMul;
-    reel.needleT += dt * conf.needleSpeed * speedMul;
-    reel.tension = Math.min(100, reel.tension + dt * conf.tensionRate * (reel.runActive?1.6:1));
+    const speedMul = (1 + 0.7*(reel.progress/100)) * runMul * finalMul;
+    if (isBoss && Math.random() < dt*0.6) reel.needleDir *= -1;
+    reel.needleT += dt * conf.needleSpeed * speedMul * (isBoss ? reel.needleDir : 1);
+    reel.tension = Math.min(100, reel.tension + dt * conf.tensionRate * (reel.runActive?1.6:1) * (reel.finalStand?1.5:1));
     if (reel.flashT > 0) reel.flashT -= dt;
-    if (reel.tension >= 100) catchFail('snapped');
+    if (reel.tension >= 100) catchFail(isBoss ? 'escaped' : 'snapped');
   } else if (state === 'result') {
     resultTimer -= dt;
     if (resultTimer <= 0) {
       state = 'idle';
       bobber.x = rod.tipX; bobber.y = rod.tipY;
-      setMsg("스페이스바를 눌러 캐스팅하세요");
+      setMsg("스페이스바 또는 버튼으로 캐스팅하세요");
     }
   }
 }
@@ -478,25 +655,26 @@ function update(dt) {
 function needleX() { return 0.5 + 0.42*Math.sin(reel.needleT); }
 
 function handleSpace() {
-  if (state === 'idle') { startCast(); }
+  if (state === 'idle') { startCast(0); }
   else if (state === 'bite') { beginReeling(); }
   else if (state === 'reeling') {
     const nx = needleX();
     const inZone = nx >= reel.zoneStart && nx <= reel.zoneStart + reel.zoneWidth;
     reel.flashT = 0.15;
+    const isBoss = currentFish.rarity === 'boss';
     const conf = RARITY[currentFish.rarity];
     if (inZone) {
       const center = reel.zoneStart + reel.zoneWidth/2;
       const dNorm = 1 - Math.min(1, Math.abs(nx-center)/(reel.zoneWidth/2));
       reel.progress = Math.min(100, reel.progress + conf.gain + dNorm*7);
-      reel.tension = Math.max(0, reel.tension - 12);
-      reel.zoneWidth = Math.max(0.075, conf.zoneWidthRatio * (1 - 0.45*(reel.progress/100)));
+      reel.tension = Math.max(0, reel.tension - (isBoss?9:12));
+      reel.zoneWidth = Math.max(0.06, conf.zoneWidthRatio * (1 - 0.45*(reel.progress/100)));
       reel.zoneStart = Math.random() * (1 - reel.zoneWidth);
       if (reel.progress >= 100) catchSuccess();
     } else {
-      reel.progress = Math.max(0, reel.progress - 9);
-      reel.tension = Math.min(100, reel.tension + 13);
-      shake = 4;
+      reel.progress = Math.max(0, reel.progress - (isBoss?13:9));
+      reel.tension = Math.min(100, reel.tension + (isBoss?17:13));
+      shake = isBoss ? 7 : 4;
     }
   }
 }
@@ -605,12 +783,43 @@ function drawBackground(now) {
 }
 
 /* =========================================================
-   Fish illustration (canvas) — used for catch reveal
+   Fish illustration (canvas) — used for catch reveal & dex thumbnails
 ========================================================= */
+const BODY_HEIGHT_RATIO = {
+  torpedo:0.30, oval:0.44, slender:0.17, flat:0.5, spiny:0.34, turtle:0.5,
+  squid:0.28, crab:0.6, shark:0.30, whale:0.5, giant_squid:0.32,
+};
+
 function bodyGradient(c, colors, len) {
   const g = c.createLinearGradient(0,-len*0.28,0,len*0.28);
   g.addColorStop(0, colors.light); g.addColorStop(0.55, colors.base); g.addColorStop(1, colors.dark);
   return g;
+}
+
+function drawScales(c, len, h) {
+  c.save();
+  c.globalAlpha = 0.16;
+  c.strokeStyle = '#ffffff';
+  c.lineWidth = Math.max(0.6, len*0.006);
+  for (let r=-2; r<=2; r++) {
+    const y = r*h*0.16;
+    for (let x=-len*0.34; x<len*0.3; x+=len*0.055) {
+      c.beginPath();
+      c.arc(x, y, len*0.035, Math.PI*0.15, Math.PI*0.85);
+      c.stroke();
+    }
+  }
+  c.restore();
+}
+
+function drawSpecular(c, len, h) {
+  c.save();
+  c.globalAlpha = 0.35;
+  const g = c.createRadialGradient(len*0.06,-h*0.3,2, len*0.06,-h*0.3,len*0.32);
+  g.addColorStop(0,'rgba(255,255,255,0.55)'); g.addColorStop(1,'rgba(255,255,255,0)');
+  c.fillStyle = g;
+  c.beginPath(); c.ellipse(len*0.06,-h*0.28,len*0.3,h*0.22,0,0,Math.PI*2); c.fill();
+  c.restore();
 }
 
 function drawPattern(c, pattern, colors, len) {
@@ -648,7 +857,7 @@ function drawPattern(c, pattern, colors, len) {
 function drawFishShape(c, def, len) {
   const colors = COLOR_PRESETS[def.colorKey];
   const grad = bodyGradient(c, colors, len);
-  const h = len * ({torpedo:0.30, oval:0.44, slender:0.17, flat:0.5, spiny:0.34, turtle:0.5, squid:0.28, crab:0.6}[def.bodyType] || 0.3);
+  const h = len * (BODY_HEIGHT_RATIO[def.bodyType] || 0.3);
 
   c.save();
   if (def.bodyType === 'turtle') {
@@ -679,6 +888,123 @@ function drawFishShape(c, def, len) {
       const yy = (i-2)*h*0.14;
       c.beginPath(); c.moveTo(len*0.3,0); c.quadraticCurveTo(len*0.5, yy, len*0.62, yy*1.3); c.stroke();
     }
+  } else if (def.bodyType === 'giant_squid') {
+    c.fillStyle = grad;
+    c.beginPath();
+    c.moveTo(len*0.34, 0);
+    c.quadraticCurveTo(len*0.16, -h*0.6, -len*0.22, -h*0.44);
+    c.quadraticCurveTo(-len*0.46, -h*0.16, -len*0.46, 0);
+    c.quadraticCurveTo(-len*0.46, h*0.16, -len*0.22, h*0.44);
+    c.quadraticCurveTo(len*0.16, h*0.6, len*0.34, 0);
+    c.closePath(); c.fill();
+    c.strokeStyle = colors.dark; c.lineWidth = 1.6; c.stroke();
+
+    c.fillStyle = colors.dark;
+    c.beginPath(); c.moveTo(-len*0.22,-h*0.44); c.lineTo(-len*0.5,-h*0.6); c.lineTo(-len*0.3,-h*0.2); c.closePath(); c.fill();
+    c.beginPath(); c.moveTo(-len*0.22,h*0.44); c.lineTo(-len*0.5,h*0.6); c.lineTo(-len*0.3,h*0.2); c.closePath(); c.fill();
+
+    c.strokeStyle = colors.dark; c.lineWidth = Math.max(2,len*0.018);
+    for (let i=0;i<8;i++) {
+      const yy = (i-3.5)*h*0.12;
+      c.beginPath(); c.moveTo(len*0.32,0);
+      c.quadraticCurveTo(len*0.55, yy, len*0.68, yy*1.4);
+      c.stroke();
+    }
+    c.lineWidth = Math.max(2.5,len*0.022);
+    for (const s of [-1,1]) {
+      c.beginPath(); c.moveTo(len*0.32, s*h*0.05);
+      c.quadraticCurveTo(len*0.7, s*h*0.5, len*0.95, s*h*0.15);
+      c.stroke();
+      c.fillStyle = colors.dark;
+      for (let k=0;k<4;k++) {
+        const tx = len*0.5 + k*len*0.14;
+        c.beginPath(); c.arc(tx, s*h*(0.2+k*0.05), len*0.012,0,Math.PI*2); c.fill();
+      }
+    }
+
+    const eg = c.createRadialGradient(len*0.2,-h*0.08,1, len*0.2,-h*0.08, len*0.06);
+    eg.addColorStop(0,'#9be8ff'); eg.addColorStop(1,'rgba(155,232,255,0)');
+    c.fillStyle = eg; c.beginPath(); c.arc(len*0.2,-h*0.08,len*0.06,0,Math.PI*2); c.fill();
+    c.fillStyle = '#0a0a0a'; c.beginPath(); c.arc(len*0.2,-h*0.08,Math.max(2,len*0.022),0,Math.PI*2); c.fill();
+  } else if (def.bodyType === 'shark') {
+    const noseX = len*0.52, tailX = -len*0.5;
+    c.fillStyle = grad;
+    c.beginPath();
+    c.moveTo(noseX,0);
+    c.quadraticCurveTo(len*0.3,-h*0.5, tailX*0.55,-h*0.34);
+    c.quadraticCurveTo(tailX*0.9,-h*0.08, tailX,0);
+    c.quadraticCurveTo(tailX*0.9,h*0.08, tailX*0.55,h*0.34);
+    c.quadraticCurveTo(len*0.3,h*0.5, noseX,0);
+    c.closePath(); c.fill();
+    c.strokeStyle = colors.dark; c.lineWidth = 2; c.stroke();
+
+    c.fillStyle = colors.dark;
+    c.beginPath();
+    c.moveTo(tailX*0.55,0);
+    c.quadraticCurveTo(tailX*1.05,-h*0.75, tailX*1.35,-h*0.2);
+    c.quadraticCurveTo(tailX*0.95,-h*0.05, tailX*0.85,0);
+    c.quadraticCurveTo(tailX*0.95,h*0.05, tailX*1.2,h*0.55);
+    c.quadraticCurveTo(tailX*1.0,h*0.15,tailX*0.55,0);
+    c.closePath(); c.fill();
+
+    c.beginPath();
+    c.moveTo(len*0.02,-h*0.48); c.lineTo(-len*0.05,-h*1.35); c.lineTo(-len*0.22,-h*0.46);
+    c.closePath(); c.fill();
+
+    c.beginPath();
+    c.moveTo(len*0.1,h*0.2); c.lineTo(len*0.0,h*0.85); c.lineTo(-len*0.12,h*0.28);
+    c.closePath(); c.fill();
+
+    c.strokeStyle = colors.dark; c.lineWidth = Math.max(1.2,len*0.012);
+    for (let i=0;i<5;i++) {
+      const x = len*0.18 - i*len*0.035;
+      c.beginPath(); c.moveTo(x,-h*0.28); c.lineTo(x-len*0.015,h*0.22); c.stroke();
+    }
+
+    c.strokeStyle = colors.dark; c.lineWidth = 1.4;
+    c.beginPath(); c.moveTo(noseX-2,h*0.08); c.quadraticCurveTo(len*0.32,h*0.22,len*0.2,h*0.1); c.stroke();
+    c.fillStyle = '#fff';
+    for (let i=0;i<5;i++) {
+      const x = len*0.4 - i*len*0.045;
+      c.beginPath(); c.moveTo(x,h*0.1); c.lineTo(x-len*0.018,h*0.17); c.lineTo(x+len*0.018,h*0.17); c.closePath(); c.fill();
+    }
+
+    c.fillStyle = '#0a0a0a';
+    c.beginPath(); c.arc(len*0.34,-h*0.06, Math.max(2,len*0.022),0,Math.PI*2); c.fill();
+  } else if (def.bodyType === 'whale') {
+    c.fillStyle = grad;
+    c.beginPath();
+    c.moveTo(len*0.46,-h*0.05);
+    c.quadraticCurveTo(len*0.3,-h*0.55,-len*0.1,-h*0.5);
+    c.quadraticCurveTo(-len*0.4,-h*0.4,-len*0.48,-h*0.05);
+    c.quadraticCurveTo(-len*0.4,h*0.42,-len*0.05,h*0.5);
+    c.quadraticCurveTo(len*0.3,h*0.5, len*0.46,-h*0.05);
+    c.closePath(); c.fill();
+    c.strokeStyle = colors.dark; c.lineWidth = 2; c.stroke();
+
+    c.save();
+    c.strokeStyle = colors.dark; c.globalAlpha = 0.4; c.lineWidth = Math.max(1,len*0.01);
+    for (let i=0;i<6;i++) {
+      const y = h*0.1 + i*h*0.06;
+      c.beginPath(); c.moveTo(len*0.25,y); c.lineTo(-len*0.2,y+h*0.05); c.stroke();
+    }
+    c.restore();
+
+    c.fillStyle = colors.dark;
+    c.beginPath();
+    c.moveTo(-len*0.44,0);
+    c.quadraticCurveTo(-len*0.62,-h*0.5,-len*0.82,-h*0.42);
+    c.quadraticCurveTo(-len*0.6,-h*0.12,-len*0.5,0);
+    c.quadraticCurveTo(-len*0.6,h*0.12,-len*0.82,h*0.42);
+    c.quadraticCurveTo(-len*0.62,h*0.5,-len*0.44,0);
+    c.closePath(); c.fill();
+
+    c.beginPath(); c.moveTo(0,-h*0.48); c.quadraticCurveTo(len*0.05,-h*0.75,len*0.15,-h*0.46); c.closePath(); c.fill();
+    c.beginPath(); c.moveTo(len*0.16,h*0.18); c.quadraticCurveTo(len*0.1,h*0.6,-len*0.05,h*0.3); c.closePath(); c.fill();
+
+    c.fillStyle = '#111';
+    c.beginPath(); c.arc(len*0.32,-h*0.42, Math.max(1.6,len*0.015),0,Math.PI*2); c.fill();
+    c.beginPath(); c.arc(len*0.36,-h*0.02, Math.max(1.8,len*0.02),0,Math.PI*2); c.fill();
   } else if (def.bodyType === 'crab') {
     c.fillStyle = grad;
     c.beginPath(); c.ellipse(0,0, len*0.36, h*0.5, 0, 0, Math.PI*2); c.fill();
@@ -722,6 +1048,7 @@ function drawFishShape(c, def, len) {
     c.quadraticCurveTo(len*0.28, h*0.55, noseX, 0);
     c.closePath(); c.fill();
     c.strokeStyle = colors.dark; c.lineWidth = 1.6; c.stroke();
+    drawScales(c, len, h);
 
     // tail fin
     c.fillStyle = colors.dark;
@@ -788,6 +1115,7 @@ function drawFishShape(c, def, len) {
   }
 
   if (def.pattern) drawPattern(c, def.pattern, colors, len);
+  drawSpecular(c, len, h);
   c.restore();
 }
 
@@ -818,6 +1146,7 @@ function drawLine() {
 
 function drawReelUI() {
   if (state !== 'reeling') return;
+  const isBoss = currentFish.rarity === 'boss';
   const barX = W/2-170, barY = H-130, barW = 340, barH = 24;
 
   ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(barX,barY,barW,barH);
@@ -825,9 +1154,9 @@ function drawReelUI() {
   ctx.fillRect(barX+reel.zoneStart*barW, barY, reel.zoneWidth*barW, barH);
   ctx.globalAlpha = 1;
   const nx = barX + needleX()*barW;
-  ctx.fillStyle = reel.flashT>0 ? '#fff' : (reel.runActive ? '#ff5252' : '#ff1744');
+  ctx.fillStyle = reel.flashT>0 ? '#fff' : (reel.runActive || reel.finalStand ? '#ff5252' : '#ff1744');
   ctx.fillRect(nx-2.2, barY-4, 4.4, barH+8);
-  ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.strokeRect(barX,barY,barW,barH);
+  ctx.strokeStyle = isBoss ? '#ff3d3d' : '#fff'; ctx.lineWidth = 2; ctx.strokeRect(barX,barY,barW,barH);
 
   ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(barX,barY-34,barW,14);
   ctx.fillStyle = '#66bb6a'; ctx.fillRect(barX,barY-34,barW*(reel.progress/100),14);
@@ -839,7 +1168,8 @@ function drawReelUI() {
   ctx.fillText('장력', barX, barY-22);
 
   ctx.textAlign = 'center'; ctx.font = 'bold 13px sans-serif';
-  ctx.fillText(`${starsStr(RARITY[currentFish.rarity].stars)}`, W/2, barY-46);
+  ctx.fillStyle = RARITY[currentFish.rarity].color;
+  ctx.fillText(`${starsStr(RARITY[currentFish.rarity].stars)}${isBoss ? '  BOSS' : ''}`, W/2, barY-46);
 }
 
 function draw(now) {
@@ -874,6 +1204,7 @@ function ensureHeroCanvas() {
   document.getElementById('catchCard').insertBefore(heroCanvas, document.getElementById('newTag'));
   heroCtx = heroCanvas.getContext('2d');
 }
+const HERO_LEN = { whale:150, giant_squid:150, shark:180 };
 function drawHeroFish() {
   ensureHeroCanvas();
   heroCtx.clearRect(0,0,heroCanvas.width, heroCanvas.height);
@@ -892,58 +1223,46 @@ function drawHeroFish() {
   heroCtx.save();
   heroCtx.translate(heroCanvas.width/2, heroCanvas.height*0.46);
   heroCtx.rotate(-0.12);
-  drawFishShape(heroCtx, currentFish, 200);
+  drawFishShape(heroCtx, currentFish, HERO_LEN[currentFish.bodyType] || 200);
   heroCtx.restore();
 }
 
 /* =========================================================
    Dex UI
 ========================================================= */
-function dexFishSVG(def, locked) {
-  const c = COLOR_PRESETS[def.colorKey];
-  const base = locked ? '#3a4750' : c.base;
-  const dark = locked ? '#232b31' : c.dark;
-  let body = '';
-  switch (def.bodyType) {
-    case 'oval':
-      body = `<path d="M2 12 C6 1,24 1,30 12 C24 23,6 23,2 12 Z" fill="${base}"/><path d="M15 1 Q6 -6 2 2 Z" fill="${dark}"/>`;
-      break;
-    case 'flat':
-      body = `<path d="M2 12 C4 4,20 3,32 12 C20 21,4 20,2 12 Z" fill="${base}"/>`;
-      break;
-    case 'slender':
-      body = `<path d="M0 12 C4 8,28 8,34 12 C28 16,4 16,0 12 Z" fill="${base}"/>`;
-      break;
-    case 'spiny':
-      body = `<path d="M2 12 C6 3,22 2,28 12 C22 21,6 21,2 12 Z" fill="${base}"/><path d="M14 2 L11 -5 L18 1 Z" fill="${dark}"/>`;
-      break;
-    case 'turtle':
-      body = `<ellipse cx="15" cy="12" rx="13" ry="9" fill="${base}"/><ellipse cx="27" cy="12" rx="4" ry="3" fill="${dark}"/>`;
-      break;
-    case 'squid':
-      body = `<path d="M6 12 C2 4,2 20,6 12 M6 12 C12 2,24 4,30 12 C24 20,12 22,6 12 Z" fill="${base}"/>`;
-      break;
-    case 'crab':
-      body = `<ellipse cx="15" cy="12" rx="12" ry="8" fill="${base}"/><path d="M25 8 L31 3 M25 16 L31 21" stroke="${dark}" stroke-width="2" fill="none"/>`;
-      break;
-    default: // torpedo
-      body = `<path d="M2 12 C6 4,22 4,26 12 C22 20,6 20,2 12 Z" fill="${base}"/><path d="M26 12 L34 6 L34 18 Z" fill="${dark}"/>`;
+const DEX_LEN = { whale:38, giant_squid:36, shark:44, turtle:34, crab:30, flat:34 };
+function dexFishImage(def, locked) {
+  const cnv = document.createElement('canvas');
+  cnv.width = 72; cnv.height = 48;
+  const cx = cnv.getContext('2d');
+  if (locked) {
+    cx.fillStyle = '#2a333b';
+    cx.beginPath(); cx.ellipse(36,24,27,14,0,0,Math.PI*2); cx.fill();
+    cx.fillStyle = '#5a6570'; cx.font = 'bold 18px sans-serif'; cx.textAlign = 'center'; cx.textBaseline = 'middle';
+    cx.fillText('?', 36, 25);
+  } else {
+    cx.save();
+    cx.translate(36, 25);
+    cx.rotate(-0.05);
+    drawFishShape(cx, def, DEX_LEN[def.bodyType] || 42);
+    cx.restore();
   }
-  return `<svg width="36" height="24" viewBox="0 0 36 24" xmlns="http://www.w3.org/2000/svg">${body}${locked ? '' : `<circle cx="9" cy="10" r="1.5" fill="#000"/>`}</svg>`;
+  return cnv.toDataURL();
 }
 
 let dexTab = 'lake';
 function renderDex() {
   const grid = document.getElementById('dexGrid');
   grid.innerHTML = '';
-  const list = (dexTab === 'lake' ? LAKE_FISH : SEA_FISH).map(fishDef);
+  const src = dexTab === 'lake' ? LAKE_FISH : dexTab === 'sea' ? SEA_FISH : BOSS_FISH;
+  const list = src.map(fishDef);
   for (const def of list) {
     const caught = dex[def.name];
     const card = document.createElement('div');
-    card.className = 'dexCard' + (caught ? ' caught' : '');
+    card.className = 'dexCard' + (caught ? ' caught' : '') + (def.rarity==='boss' ? ' bossCardMini' : '');
     if (caught) card.style.setProperty('--rc', RARITY[def.rarity].color);
     card.innerHTML = `
-      <div>${dexFishSVG(def, !caught)}</div>
+      <img class="dexImg" src="${dexFishImage(def, !caught)}" width="72" height="48" alt="">
       <div class="name">${caught ? def.name : '???'}</div>
       <div class="stars" style="color:${caught ? RARITY[def.rarity].color : '#555'}">${caught ? starsStr(RARITY[def.rarity].stars) : '☆☆☆☆☆'}</div>
       ${caught ? `<div class="best">최대 ${caught.best}cm · ${caught.count}마리</div>` : ''}
@@ -954,22 +1273,31 @@ function renderDex() {
 
 document.getElementById('dexBtn').addEventListener('click', () => { document.getElementById('dexOverlay').style.display='flex'; renderDex(); });
 document.getElementById('dexClose').addEventListener('click', () => { document.getElementById('dexOverlay').style.display='none'; });
-document.getElementById('tabLake').addEventListener('click', () => {
-  dexTab='lake'; document.getElementById('tabLake').classList.add('active'); document.getElementById('tabSea').classList.remove('active'); renderDex();
-});
-document.getElementById('tabSea').addEventListener('click', () => {
-  dexTab='sea'; document.getElementById('tabSea').classList.add('active'); document.getElementById('tabLake').classList.remove('active'); renderDex();
-});
+function activateTab(tab) {
+  dexTab = tab;
+  document.getElementById('tabLake').classList.toggle('active', tab==='lake');
+  document.getElementById('tabSea').classList.toggle('active', tab==='sea');
+  document.getElementById('tabSpecial').classList.toggle('active', tab==='special');
+  renderDex();
+}
+document.getElementById('tabLake').addEventListener('click', () => activateTab('lake'));
+document.getElementById('tabSea').addEventListener('click', () => activateTab('sea'));
+document.getElementById('tabSpecial').addEventListener('click', () => activateTab('special'));
 document.getElementById('locLake').addEventListener('click', () => {
   spot='lake'; state='idle';
   document.getElementById('locLake').classList.add('active'); document.getElementById('locSea').classList.remove('active');
-  setMsg("스페이스바를 눌러 캐스팅하세요");
+  setMsg("스페이스바 또는 버튼으로 캐스팅하세요");
 });
 document.getElementById('locSea').addEventListener('click', () => {
   spot='sea'; state='idle';
   document.getElementById('locSea').classList.add('active'); document.getElementById('locLake').classList.remove('active');
-  setMsg("스페이스바를 눌러 캐스팅하세요");
+  setMsg("스페이스바 또는 버튼으로 캐스팅하세요");
 });
+
+document.getElementById('tabLakeCount').textContent = LAKE_FISH.length;
+document.getElementById('tabSeaCount').textContent = SEA_FISH.length;
+document.getElementById('tabSpecialCount').textContent = BOSS_FISH.length;
+document.getElementById('dexTotalCount').textContent = LAKE_FISH.length + SEA_FISH.length + BOSS_FISH.length;
 
 updateTopStats();
 requestAnimationFrame(gameLoop);
