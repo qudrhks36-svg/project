@@ -1,0 +1,978 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>1인칭 낚시</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    background: #05070a;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Segoe UI', sans-serif;
+    overflow: hidden;
+  }
+  #wrap { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+
+  #topbar {
+    width: 900px; display: flex; justify-content: space-between; align-items: center;
+    color: #fff; background: linear-gradient(180deg, rgba(20,30,45,0.9), rgba(10,16,24,0.9));
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 10px; padding: 8px 14px;
+  }
+  .chip { display: flex; align-items: center; gap: 6px; font-size: 13px; }
+  .chip b { font-size: 15px; }
+  .btn {
+    padding: 8px 14px; font-size: 13px; border: none; border-radius: 7px;
+    background: #263544; color: #dce6ef; font-weight: bold; cursor: pointer;
+    border: 1px solid rgba(255,255,255,0.08);
+  }
+  .btn:hover { background: #33475a; }
+  .btn.active { background: linear-gradient(180deg,#5fd0ff,#2b9fe0); color: #00222e; border-color: #7fdcff; }
+
+  #stageWrap { position: relative; border-radius: 10px; overflow: hidden; box-shadow: 0 14px 46px rgba(0,0,0,0.65); }
+  canvas { background: #123; display: block; }
+
+  #msg {
+    position: absolute; left: 50%; top: 14px; transform: translateX(-50%);
+    color: #fff; font-size: 13px; text-align: center; padding: 5px 14px;
+    background: rgba(0,0,0,0.4); border-radius: 20px; letter-spacing: 0.3px;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.6);
+  }
+
+  /* ---- Rod & reel rig (first-person foreground) ---- */
+  #rodRig { position: absolute; right: -10px; bottom: -14px; width: 300px; height: 320px; pointer-events: none; filter: drop-shadow(0 6px 10px rgba(0,0,0,0.5)); }
+
+  /* ---- Dex overlay ---- */
+  #dexOverlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.78);
+    display: none; align-items: center; justify-content: center; z-index: 20;
+  }
+  #dexPanel {
+    width: 880px; max-height: 84vh; background: linear-gradient(180deg,#16232f,#0e1720); border-radius: 14px;
+    padding: 18px 20px; color: #fff; display: flex; flex-direction: column; gap: 10px;
+    box-shadow: 0 10px 50px rgba(0,0,0,0.7); border: 1px solid rgba(255,255,255,0.08);
+  }
+  #dexPanel h2 { margin: 0; font-size: 20px; letter-spacing: 0.5px; }
+  #dexTabs { display: flex; gap: 8px; }
+  #dexGrid {
+    display: grid; grid-template-columns: repeat(8, 1fr); gap: 9px;
+    overflow-y: auto; padding: 6px 2px; max-height: 60vh;
+  }
+  .dexCard {
+    background: linear-gradient(180deg,#1e2f3d,#152029); border-radius: 9px; padding: 7px 5px; text-align: center;
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    border: 1px solid rgba(255,255,255,0.06);
+  }
+  .dexCard.caught { border-color: var(--rc, #4fc3f7); box-shadow: 0 0 10px -2px var(--rc, #4fc3f7); }
+  .dexCard .name { font-size: 10.3px; line-height: 1.2; min-height: 24px; }
+  .dexCard .stars { font-size: 9px; letter-spacing: 1px; }
+  .dexCard .best { font-size: 8.7px; color: #ffd54f; }
+  #dexClose { align-self: flex-end; }
+
+  /* ---- Catch reveal (hero shot) ---- */
+  #catchReveal {
+    position: absolute; inset: 0; display: none; align-items: flex-end; justify-content: center;
+    z-index: 16; pointer-events: none;
+  }
+  #catchCard {
+    width: 88%; margin-bottom: 22px; background: linear-gradient(180deg, rgba(10,18,26,0.4), rgba(6,12,18,0.92));
+    border-radius: 16px; padding: 14px 22px 16px; color: #fff; text-align: center;
+    border: 1px solid rgba(255,255,255,0.15); backdrop-filter: blur(2px);
+  }
+  #catchCard .stars { font-size: 20px; letter-spacing: 3px; color: #ffd54f; text-shadow: 0 0 10px rgba(255,213,79,0.7); }
+  #catchCard h2 { margin: 2px 0; font-size: 30px; letter-spacing: 1px; text-shadow: 0 2px 8px rgba(0,0,0,0.7); }
+  #catchCard .sizeRow { font-size: 22px; color: #7fe0ff; font-weight: bold; }
+  #catchCard .pointsRow { font-size: 13px; color: #ffd54f; margin-top: 2px; }
+  #catchCard .newTag {
+    display: inline-block; background: #ff5252; color: #fff; font-size: 11px; font-weight: bold;
+    padding: 2px 8px; border-radius: 10px; margin-bottom: 4px; letter-spacing: 1px;
+  }
+  #failCard {
+    width: 60%; margin-bottom: 22px; background: rgba(30,10,10,0.75); border-radius: 16px;
+    padding: 14px 20px; color: #ffb3ab; text-align: center; border: 1px solid rgba(255,90,90,0.35);
+    font-size: 18px; font-weight: bold; display: none;
+  }
+
+  #runWarning {
+    position: absolute; left: 50%; top: 46%; transform: translate(-50%,-50%);
+    color: #ff5252; font-size: 26px; font-weight: 900; letter-spacing: 1px;
+    text-shadow: 0 0 14px rgba(255,0,0,0.8); display: none; z-index: 14;
+  }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="topbar">
+    <button class="btn" id="dexBtn">📖 도감 (<span id="dexCountTop">0</span>/80)</button>
+    <div class="chip">🐟 <b id="totalCatches">0</b>마리 &nbsp;·&nbsp; ⭐ <b id="totalScore">0</b>점</div>
+    <div>
+      <button class="btn active" id="locLake">🏞️ 호수</button>
+      <button class="btn" id="locSea">🌊 먼바다</button>
+    </div>
+  </div>
+
+  <div id="stageWrap">
+    <canvas id="game" width="900" height="560"></canvas>
+    <div id="msg">스페이스바를 눌러 캐스팅하세요</div>
+    <div id="runWarning">! 물고기가 저항한다 !</div>
+
+    <div id="catchReveal">
+      <div id="catchCard">
+        <div id="newTag" class="newTag" style="display:none;">NEW!</div>
+        <div class="stars" id="popStars">★★★☆☆</div>
+        <h2 id="popName">이름</h2>
+        <div class="sizeRow" id="popSize">32.4cm</div>
+        <div class="pointsRow" id="popPoints">+120점</div>
+      </div>
+      <div id="failCard"></div>
+    </div>
+
+    <svg id="rodRig" viewBox="0 0 300 320" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="rodBlank" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#3a2a1a"/>
+          <stop offset="1" stop-color="#7a5a34"/>
+        </linearGradient>
+        <linearGradient id="reelBody" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#565f66"/>
+          <stop offset="1" stop-color="#20262b"/>
+        </linearGradient>
+        <radialGradient id="spoolGrad" cx="0.4" cy="0.35" r="0.7">
+          <stop offset="0" stop-color="#c9d3d8"/>
+          <stop offset="1" stop-color="#7c8890"/>
+        </radialGradient>
+      </defs>
+      <line x1="40" y1="300" x2="230" y2="40" stroke="url(#rodBlank)" stroke-width="16" stroke-linecap="round"/>
+      <line x1="40" y1="300" x2="230" y2="40" stroke="#241a10" stroke-width="16" stroke-linecap="round" opacity="0.18"/>
+      <circle cx="150" cy="140" r="4.5" fill="none" stroke="#111" stroke-width="2.4"/>
+      <circle cx="115" cy="192" r="5.5" fill="none" stroke="#111" stroke-width="2.6"/>
+      <circle cx="80" cy="245" r="6.5" fill="none" stroke="#111" stroke-width="2.8"/>
+      <g transform="translate(58,262)">
+        <ellipse cx="0" cy="0" rx="30" ry="34" fill="url(#reelBody)" stroke="#0c0f12" stroke-width="2"/>
+        <circle cx="0" cy="-4" r="17" fill="url(#spoolGrad)" stroke="#3d454b" stroke-width="2"/>
+        <line x1="-30" y1="4" x2="-52" y2="4" stroke="#20262b" stroke-width="7" stroke-linecap="round"/>
+        <circle cx="-52" cy="4" r="7" fill="#3d454b"/>
+        <rect x="-8" y="26" width="16" height="26" rx="4" fill="#171b1e"/>
+      </g>
+      <path d="M20 320 C10 270,20 230,55 210 L70 230 C48 250,44 280,50 320 Z" fill="#caa06a" stroke="#5c4626" stroke-width="2"/>
+      <path d="M100 320 C95 280,100 245,120 220 L134 236 C118 256,116 285,120 320 Z" fill="#e8b57a" stroke="#5c4626" stroke-width="2"/>
+    </svg>
+  </div>
+</div>
+
+<div id="dexOverlay">
+  <div id="dexPanel">
+    <h2>물고기 도감</h2>
+    <div id="dexTabs">
+      <button class="btn active" id="tabLake">호수 (40)</button>
+      <button class="btn" id="tabSea">먼바다 (40)</button>
+      <button class="btn" id="dexClose" style="margin-left:auto;">닫기</button>
+    </div>
+    <div id="dexGrid"></div>
+  </div>
+</div>
+
+<script>
+/* =========================================================
+   Fish database: [name, rarity, minLen, maxLen, bodyType, colorKey, pattern?, whiskers?]
+========================================================= */
+const LAKE_FISH = [
+  ["붕어","common",15,35,"oval","gold"],
+  ["잉어","common",30,70,"oval","copper"],
+  ["피라미","common",8,15,"torpedo","silver"],
+  ["갈겨니","common",10,20,"torpedo","silver"],
+  ["참붕어","common",6,12,"oval","gold"],
+  ["버들치","common",8,16,"torpedo","olive"],
+  ["돌고기","common",8,15,"torpedo","sand"],
+  ["모래무지","common",10,18,"slender","sand"],
+  ["몰개","common",6,12,"torpedo","silver"],
+  ["줄몰개","common",6,11,"torpedo","silver"],
+  ["각시붕어","common",5,8,"oval","rose"],
+  ["납자루","common",6,10,"oval","rose"],
+  ["왜몰개","common",5,9,"torpedo","silver"],
+  ["참마자","common",12,22,"slender","sand"],
+  ["미꾸리","common",8,15,"slender","ink"],
+  ["미꾸라지","common",10,20,"slender","ink"],
+  ["메기","uncommon",30,60,"slender","charcoal",null,true],
+  ["동자개(빠가사리)","uncommon",15,30,"slender","sand",null,true],
+  ["블루길","uncommon",10,25,"oval","teal"],
+  ["큰입배스","uncommon",20,45,"oval","olive"],
+  ["향어","uncommon",30,55,"oval","copper"],
+  ["끄리","uncommon",20,40,"torpedo","silver"],
+  ["강준치","uncommon",25,45,"torpedo","silver"],
+  ["누치","uncommon",25,50,"torpedo","sand"],
+  ["자가사리","uncommon",8,15,"spiny","charcoal",null,true],
+  ["얼룩동사리","uncommon",10,20,"spiny","olive","spots"],
+  ["꺽지","uncommon",12,22,"spiny","olive"],
+  ["꺽저기","uncommon",8,15,"spiny","olive"],
+  ["쏘가리","rare",25,55,"spiny","sand","spots"],
+  ["뱀장어","rare",40,90,"slender","ink"],
+  ["은어","rare",15,30,"torpedo","silver"],
+  ["산천어","rare",20,35,"torpedo","olive","spots"],
+  ["열목어","rare",30,60,"torpedo","olive","spots"],
+  ["무지개송어","rare",25,50,"torpedo","rose","lateral"],
+  ["눈불개","rare",20,35,"oval","copper"],
+  ["가물치","rare",40,85,"slender","charcoal","spots"],
+  ["자라","legendary",20,45,"turtle","olive"],
+  ["초어","legendary",50,100,"oval","olive"],
+  ["백련어(대두어)","legendary",50,110,"oval","silver"],
+  ["미유기","legendary",15,28,"slender","charcoal",null,true],
+];
+
+const SEA_FISH = [
+  ["전어","common",12,25,"torpedo","silver"],
+  ["학공치","common",20,35,"slender","silver"],
+  ["청어","common",20,30,"torpedo","bluesteel"],
+  ["정어리","common",10,20,"torpedo","bluesteel"],
+  ["멸치","common",5,12,"torpedo","silver"],
+  ["망상어","common",15,25,"oval","rose"],
+  ["쥐치","common",15,25,"oval","sand"],
+  ["도루묵","common",15,25,"slender","silver"],
+  ["볼락","common",15,30,"spiny","deepBlue"],
+  ["열기(불볼락)","common",15,28,"spiny","crimson"],
+  ["노래미","common",20,35,"slender","olive"],
+  ["쥐노래미","common",20,35,"slender","olive"],
+  ["가자미","common",20,35,"flat","sand"],
+  ["도다리","common",18,30,"flat","sand"],
+  ["양태","common",25,45,"flat","sand"],
+  ["서대","common",20,35,"flat","sand"],
+  ["고등어","uncommon",25,45,"torpedo","bluesteel","backwave"],
+  ["전갱이","uncommon",20,40,"torpedo","silver","lateral"],
+  ["삼치","uncommon",40,80,"torpedo","bluesteel","spots"],
+  ["감성돔","uncommon",25,45,"oval","charcoal"],
+  ["벤자리","uncommon",20,35,"oval","sand","stripesV"],
+  ["조피볼락(우럭)","uncommon",25,45,"spiny","charcoal"],
+  ["넙치(광어)","uncommon",30,60,"flat","sand"],
+  ["갈치","uncommon",50,100,"slender","silver"],
+  ["쭈꾸미","uncommon",10,20,"squid","ink"],
+  ["오징어","uncommon",20,35,"squid","silver"],
+  ["한치","uncommon",20,35,"squid","silver"],
+  ["꽃게","uncommon",10,20,"crab","sunsetOrange"],
+  ["참돔","rare",35,70,"oval","rose","spots"],
+  ["돌돔","rare",30,60,"oval","charcoal","stripesV"],
+  ["벵에돔","rare",30,55,"oval","charcoal"],
+  ["농어","rare",40,80,"torpedo","silver","spots"],
+  ["숭어","rare",30,60,"torpedo","silver"],
+  ["대구","rare",50,90,"torpedo","sand","spots"],
+  ["흑돔","rare",30,55,"oval","charcoal"],
+  ["아귀","rare",40,80,"flat","charcoal","spots"],
+  ["방어","legendary",60,130,"torpedo","deepBlue","lateral"],
+  ["부시리","legendary",60,120,"torpedo","deepBlue","lateral"],
+  ["참다랑어","legendary",100,250,"torpedo","deepBlue","lateral"],
+  ["자바리(다금바리)","legendary",50,100,"oval","charcoal","spots"],
+];
+
+const COLOR_PRESETS = {
+  gold:      { base:"#c9962c", light:"#f2d585", dark:"#7a5a15" },
+  silver:    { base:"#aebcc6", light:"#f1f6f8", dark:"#647178" },
+  bluesteel: { base:"#3b6ea5", light:"#9fd0f0", dark:"#173654" },
+  olive:     { base:"#5c7a3a", light:"#a3c46f", dark:"#33471f" },
+  copper:    { base:"#a85a32", light:"#dd9f6c", dark:"#5c2f16" },
+  rose:      { base:"#d8697a", light:"#f8c3cd", dark:"#7a3340" },
+  charcoal:  { base:"#4a4f55", light:"#828990", dark:"#202327" },
+  sand:      { base:"#c9b385", light:"#ecdfba", dark:"#8a7550" },
+  crimson:   { base:"#b8362f", light:"#e79086", dark:"#6b1f1a" },
+  teal:      { base:"#2f8f8a", light:"#8fdcd5", dark:"#175450" },
+  sunsetOrange:{ base:"#e0813a", light:"#f8c896", dark:"#8a4a1a" },
+  deepBlue:  { base:"#1c3f6e", light:"#5c8fc4", dark:"#0d1f38" },
+  ink:       { base:"#2a2a2e", light:"#5c5c62", dark:"#131315" },
+};
+
+/* ----- Difficulty: tougher timing/tension ----- */
+const RARITY = {
+  common:    { label:"COMMON",    color:"#b0bec5", stars:1, points:12,  hookWindow:0.68, zoneWidthRatio:0.27, needleSpeed:1.35, tensionRate:9.5,  gain:11 },
+  uncommon:  { label:"UNCOMMON",  color:"#4fc3f7", stars:2, points:36,  hookWindow:0.55, zoneWidthRatio:0.21, needleSpeed:1.7,  tensionRate:10.5, gain:9.5 },
+  rare:      { label:"RARE",      color:"#ba68c8", stars:3, points:95,  hookWindow:0.44, zoneWidthRatio:0.16, needleSpeed:2.05, tensionRate:11.5, gain:8.5 },
+  legendary: { label:"LEGENDARY", color:"#ffd54f", stars:5, points:300, hookWindow:0.34, zoneWidthRatio:0.115,needleSpeed:2.5,  tensionRate:13,   gain:7.5 },
+};
+const RARITY_WEIGHT = { common:50, uncommon:28, rare:15, legendary:7 };
+
+/* =========================================================
+   Persistence
+========================================================= */
+const DEX_KEY = 'fishingDexV2';
+let dex = JSON.parse(localStorage.getItem(DEX_KEY) || '{}');
+function saveDex() { localStorage.setItem(DEX_KEY, JSON.stringify(dex)); }
+let totalScore = parseInt(localStorage.getItem('fishingScoreV2') || '0', 10);
+function saveScore() { localStorage.setItem('fishingScoreV2', String(totalScore)); }
+
+/* =========================================================
+   Canvas & core state
+========================================================= */
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+const W = canvas.width, H = canvas.height;
+const HORIZON = H * 0.4;
+
+let spot = 'lake';
+let lastTime = performance.now();
+const rod = { tipX: W - 60, tipY: H - 210 };
+let bobber = { x: W/2, y: HORIZON + 60, targetX: W/2, targetY: HORIZON + 60 };
+
+let state = 'idle';
+let waitTimer = 0, biteTimer = 0, resultTimer = 0, shake = 0;
+let currentFish = null;
+let reel = { progress:0, tension:0, needleT:0, zoneStart:0.4, zoneWidth:0.3, flashT:0, runActive:false, runTimer:0, nextRunAt:0 };
+let resultData = null;
+
+let spaceJustPressed = false;
+window.addEventListener('keydown', e => {
+  if (e.key === ' ') { e.preventDefault(); if (!e.repeat) spaceJustPressed = true; }
+});
+
+function pool() { return spot === 'lake' ? LAKE_FISH : SEA_FISH; }
+function fishDef(f) { return { name:f[0], rarity:f[1], minLen:f[2], maxLen:f[3], bodyType:f[4], colorKey:f[5], pattern:f[6]||null, whiskers:!!f[7] }; }
+
+function pickWeightedFish() {
+  const p = pool();
+  const total = p.reduce((s,f) => s + RARITY_WEIGHT[f[1]], 0);
+  let r = Math.random() * total;
+  for (const f of p) { r -= RARITY_WEIGHT[f[1]]; if (r <= 0) return f; }
+  return p[0];
+}
+
+function setMsg(t) { document.getElementById('msg').textContent = t; }
+function starsStr(n) { return '★'.repeat(n) + '☆'.repeat(5-n); }
+
+/* =========================================================
+   Game flow
+========================================================= */
+function startCast() {
+  state = 'casting';
+  bobber.targetX = W * 0.28 + Math.random() * W * 0.46;
+  bobber.targetY = HORIZON + 30 + Math.random() * (H - HORIZON - 90);
+  bobber._sx = rod.tipX; bobber._sy = rod.tipY; bobber._t = 0;
+  setMsg("풍덩! 입질을 기다리는 중...");
+}
+function beginWaiting() { state = 'waiting'; waitTimer = 2 + Math.random() * 4.5; }
+
+function triggerBite() {
+  state = 'bite';
+  const f = pickWeightedFish();
+  currentFish = fishDef(f);
+  biteTimer = RARITY[currentFish.rarity].hookWindow;
+  shake = 8;
+  setMsg("지금이다! 스페이스바!");
+}
+
+function beginReeling() {
+  state = 'reeling';
+  const conf = RARITY[currentFish.rarity];
+  reel.progress = 0; reel.tension = 0; reel.needleT = Math.random()*10;
+  reel.zoneWidth = conf.zoneWidthRatio;
+  reel.zoneStart = Math.random() * (1 - reel.zoneWidth);
+  reel.runActive = false; reel.runTimer = 0;
+  reel.nextRunAt = 1.4 + Math.random() * 1.6;
+  setMsg("타이밍 맞춰 스페이스바! 릴을 감으세요");
+}
+
+function catchSuccess() {
+  const size = (currentFish.minLen + Math.random()*(currentFish.maxLen-currentFish.minLen)).toFixed(1);
+  const conf = RARITY[currentFish.rarity];
+  const points = Math.round(conf.points * (0.7 + 0.6*(size-currentFish.minLen)/(currentFish.maxLen-currentFish.minLen+0.001)));
+  totalScore += points; saveScore();
+
+  const isNew = !dex[currentFish.name];
+  const entry = dex[currentFish.name] || { count:0, best:0, rarity:currentFish.rarity, habitat:spot };
+  entry.count += 1;
+  entry.best = Math.max(entry.best, parseFloat(size));
+  entry.rarity = currentFish.rarity;
+  entry.habitat = spot;
+  dex[currentFish.name] = entry;
+  saveDex(); updateTopStats();
+
+  resultData = { ok:true, name:currentFish.name, rarity:currentFish.rarity, size, points, isNew };
+  showCatchReveal(resultData);
+  state = 'result'; resultTimer = 2.6;
+}
+
+function catchFail(reason) {
+  resultData = { ok:false, reason };
+  state = 'result'; resultTimer = 1.4;
+  showFailCard(reason === 'snapped' ? "줄이 끊어졌습니다!" : "놓쳤습니다...");
+}
+
+function showCatchReveal(d) {
+  const reveal = document.getElementById('catchReveal');
+  const card = document.getElementById('catchCard');
+  document.getElementById('failCard').style.display = 'none';
+  card.style.display = 'block';
+  document.getElementById('newTag').style.display = d.isNew ? 'inline-block' : 'none';
+  document.getElementById('popStars').textContent = starsStr(RARITY[d.rarity].stars);
+  document.getElementById('popStars').style.color = RARITY[d.rarity].color;
+  document.getElementById('popName').textContent = d.name;
+  document.getElementById('popSize').textContent = `${d.size}cm`;
+  document.getElementById('popPoints').textContent = `+${d.points}점`;
+  reveal.style.display = 'flex';
+  setTimeout(() => { reveal.style.display = 'none'; }, 2500);
+}
+function showFailCard(text) {
+  const reveal = document.getElementById('catchReveal');
+  document.getElementById('catchCard').style.display = 'none';
+  const fc = document.getElementById('failCard');
+  fc.textContent = text; fc.style.display = 'block';
+  reveal.style.display = 'flex';
+  setTimeout(() => { reveal.style.display = 'none'; }, 1300);
+}
+
+function updateTopStats() {
+  document.getElementById('dexCountTop').textContent = Object.keys(dex).length;
+  document.getElementById('totalCatches').textContent = Object.values(dex).reduce((s,e)=>s+e.count,0);
+  document.getElementById('totalScore').textContent = totalScore;
+}
+
+/* =========================================================
+   Update loop
+========================================================= */
+function update(dt) {
+  if (shake > 0) shake = Math.max(0, shake - dt*20);
+  if (spaceJustPressed) { handleSpace(); spaceJustPressed = false; }
+  document.getElementById('runWarning').style.display = (state==='reeling' && reel.runActive) ? 'block' : 'none';
+
+  if (state === 'casting') {
+    bobber._t += dt * 1.8;
+    const t = Math.min(1, bobber._t);
+    bobber.x = bobber._sx + (bobber.targetX-bobber._sx)*t;
+    bobber.y = bobber._sy + (bobber.targetY-bobber._sy)*t - Math.sin(t*Math.PI)*70;
+    if (t >= 1) beginWaiting();
+  } else if (state === 'waiting') {
+    waitTimer -= dt;
+    bobber.x = bobber.targetX;
+    bobber.y = bobber.targetY + Math.sin(performance.now()/400)*2;
+    if (waitTimer <= 0) triggerBite();
+  } else if (state === 'bite') {
+    biteTimer -= dt;
+    bobber.y = bobber.targetY + Math.sin(performance.now()/55)*7;
+    if (biteTimer <= 0) {
+      setMsg("놓쳤습니다..."); state = 'idle';
+      setTimeout(()=>setMsg("스페이스바를 눌러 캐스팅하세요"), 1100);
+    }
+  } else if (state === 'reeling') {
+    const conf = RARITY[currentFish.rarity];
+    reel.nextRunAt -= dt;
+    if (!reel.runActive && reel.nextRunAt <= 0) {
+      reel.runActive = true; reel.runTimer = 0.8 + Math.random()*0.4;
+    }
+    if (reel.runActive) {
+      reel.runTimer -= dt;
+      if (reel.runTimer <= 0) { reel.runActive = false; reel.nextRunAt = 2.2 + Math.random()*2; }
+    }
+    const runMul = reel.runActive ? 1.9 : 1;
+    const speedMul = (1 + 0.7*(reel.progress/100)) * runMul;
+    reel.needleT += dt * conf.needleSpeed * speedMul;
+    reel.tension = Math.min(100, reel.tension + dt * conf.tensionRate * (reel.runActive?1.6:1));
+    if (reel.flashT > 0) reel.flashT -= dt;
+    if (reel.tension >= 100) catchFail('snapped');
+  } else if (state === 'result') {
+    resultTimer -= dt;
+    if (resultTimer <= 0) {
+      state = 'idle';
+      bobber.x = rod.tipX; bobber.y = rod.tipY;
+      setMsg("스페이스바를 눌러 캐스팅하세요");
+    }
+  }
+}
+
+function needleX() { return 0.5 + 0.42*Math.sin(reel.needleT); }
+
+function handleSpace() {
+  if (state === 'idle') { startCast(); }
+  else if (state === 'bite') { beginReeling(); }
+  else if (state === 'reeling') {
+    const nx = needleX();
+    const inZone = nx >= reel.zoneStart && nx <= reel.zoneStart + reel.zoneWidth;
+    reel.flashT = 0.15;
+    const conf = RARITY[currentFish.rarity];
+    if (inZone) {
+      const center = reel.zoneStart + reel.zoneWidth/2;
+      const dNorm = 1 - Math.min(1, Math.abs(nx-center)/(reel.zoneWidth/2));
+      reel.progress = Math.min(100, reel.progress + conf.gain + dNorm*7);
+      reel.tension = Math.max(0, reel.tension - 12);
+      reel.zoneWidth = Math.max(0.075, conf.zoneWidthRatio * (1 - 0.45*(reel.progress/100)));
+      reel.zoneStart = Math.random() * (1 - reel.zoneWidth);
+      if (reel.progress >= 100) catchSuccess();
+    } else {
+      reel.progress = Math.max(0, reel.progress - 9);
+      reel.tension = Math.min(100, reel.tension + 13);
+      shake = 4;
+    }
+  }
+}
+
+/* =========================================================
+   Background rendering
+========================================================= */
+function cloud(x, y, s, alpha) {
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.fillStyle = '#fff';
+  for (const [dx,dy,r] of [[0,0,1],[0.7,0.1,0.7],[-0.7,0.12,0.65],[0.25,-0.35,0.6],[-0.3,-0.3,0.55]]) {
+    ctx.beginPath(); ctx.arc(x+dx*s, y+dy*s, r*s*0.45, 0, Math.PI*2); ctx.fill();
+  }
+  ctx.restore();
+}
+function bird(x, y, s) {
+  ctx.strokeStyle = 'rgba(40,40,40,0.55)'; ctx.lineWidth = 1.6;
+  ctx.beginPath();
+  ctx.moveTo(x-s, y); ctx.quadraticCurveTo(x-s*0.3, y-s*0.7, x, y);
+  ctx.quadraticCurveTo(x+s*0.3, y-s*0.7, x+s, y);
+  ctx.stroke();
+}
+function lilyPad(x, y, s) {
+  ctx.save();
+  ctx.fillStyle = 'rgba(40,80,45,0.85)';
+  ctx.beginPath();
+  ctx.arc(x, y, s, 0.35, Math.PI*2 - 0.35);
+  ctx.lineTo(x, y);
+  ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = 'rgba(20,50,25,0.6)'; ctx.lineWidth = 1; ctx.stroke();
+  ctx.restore();
+}
+
+function drawBackgroundSea(t) {
+  const sky = ctx.createLinearGradient(0,0,0,HORIZON);
+  sky.addColorStop(0,'#bfe6ff'); sky.addColorStop(0.6,'#e7f6ff'); sky.addColorStop(1,'#fef9ec');
+  ctx.fillStyle = sky; ctx.fillRect(0,0,W,HORIZON);
+
+  cloud(150, 70, 90, 0.85); cloud(430, 45, 70, 0.7); cloud(680, 90, 100, 0.8); cloud(820,55,60,0.6);
+  bird(560, 65, 9); bird(600, 80, 7); bird(300,50,7);
+
+  const sunG = ctx.createRadialGradient(W-130, 55, 4, W-130, 55, 90);
+  sunG.addColorStop(0,'rgba(255,250,220,1)'); sunG.addColorStop(1,'rgba(255,250,220,0)');
+  ctx.fillStyle = sunG; ctx.beginPath(); ctx.arc(W-130,55,90,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle = '#fff8dc'; ctx.beginPath(); ctx.arc(W-130,55,20,0,Math.PI*2); ctx.fill();
+
+  const water = ctx.createLinearGradient(0,HORIZON,0,H);
+  water.addColorStop(0,'#2f93b0'); water.addColorStop(0.35,'#1f6d8c'); water.addColorStop(1,'#083247');
+  ctx.fillStyle = water; ctx.fillRect(0,HORIZON,W,H-HORIZON);
+
+  // sun glare streak
+  ctx.save();
+  ctx.globalAlpha = 0.28;
+  const glare = ctx.createLinearGradient(W-220,HORIZON,W-40,H);
+  glare.addColorStop(0,'rgba(255,255,255,0.9)'); glare.addColorStop(1,'rgba(255,255,255,0)');
+  ctx.fillStyle = glare;
+  ctx.beginPath();
+  ctx.moveTo(W-190,HORIZON); ctx.lineTo(W-150,HORIZON); ctx.lineTo(W-40,H); ctx.lineTo(W-90,H); ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawBackgroundLake(t) {
+  const sky = ctx.createLinearGradient(0,0,0,HORIZON);
+  sky.addColorStop(0,'#9fb6ad'); sky.addColorStop(1,'#d8e4d6');
+  ctx.fillStyle = sky; ctx.fillRect(0,0,W,HORIZON);
+  cloud(120,55,60,0.5); cloud(700,40,80,0.45);
+
+  ctx.fillStyle = '#3f5a42';
+  ctx.beginPath();
+  ctx.moveTo(0,HORIZON); ctx.lineTo(0,HORIZON-55); ctx.lineTo(90,HORIZON-80); ctx.lineTo(220,HORIZON-40);
+  ctx.lineTo(380,HORIZON-70); ctx.lineTo(560,HORIZON-30); ctx.lineTo(720,HORIZON-60);
+  ctx.lineTo(900,HORIZON-20); ctx.lineTo(900,HORIZON); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,0.25)';
+  ctx.fillRect(0,HORIZON-6,W,6);
+
+  const water = ctx.createLinearGradient(0,HORIZON,0,H);
+  water.addColorStop(0,'#4a7a6a'); water.addColorStop(0.5,'#2e5a4f'); water.addColorStop(1,'#12241f');
+  ctx.fillStyle = water; ctx.fillRect(0,HORIZON,W,H-HORIZON);
+
+  lilyPad(70, H-80, 22); lilyPad(120, H-55, 16); lilyPad(40, H-40, 14);
+  lilyPad(W-90, H-100, 20); lilyPad(W-50, H-60, 15);
+}
+
+function drawWaterTexture(t) {
+  ctx.strokeStyle = 'rgba(255,255,255,0.14)';
+  ctx.lineWidth = 1.6;
+  for (let i=0;i<8;i++) {
+    const y = HORIZON + 18 + i*(H-HORIZON-18)/8;
+    ctx.beginPath();
+    for (let x=0;x<=W;x+=18) ctx.lineTo(x, y + Math.sin(x/42 + t*1.4 + i)*3);
+    ctx.stroke();
+  }
+}
+
+function drawBackground(now) {
+  const t = now/1000;
+  if (spot === 'lake') drawBackgroundLake(t); else drawBackgroundSea(t);
+  drawWaterTexture(t);
+  // foreground dock plank strip
+  ctx.fillStyle = '#33241a';
+  ctx.fillRect(0, H-30, W, 30);
+  ctx.fillStyle = 'rgba(255,255,255,0.07)';
+  for (let x=0;x<W;x+=44) ctx.fillRect(x, H-30, 3, 30);
+}
+
+/* =========================================================
+   Fish illustration (canvas) — used for catch reveal
+========================================================= */
+function bodyGradient(c, colors, len) {
+  const g = c.createLinearGradient(0,-len*0.28,0,len*0.28);
+  g.addColorStop(0, colors.light); g.addColorStop(0.55, colors.base); g.addColorStop(1, colors.dark);
+  return g;
+}
+
+function drawPattern(c, pattern, colors, len) {
+  c.save();
+  c.globalAlpha = 0.5;
+  c.strokeStyle = colors.dark;
+  c.fillStyle = colors.dark;
+  if (pattern === 'stripesV') {
+    c.lineWidth = Math.max(2, len*0.03);
+    for (let i=-3;i<=3;i++) {
+      const x = i*len*0.09;
+      c.beginPath(); c.moveTo(x, -len*0.16); c.lineTo(x, len*0.16); c.stroke();
+    }
+  } else if (pattern === 'spots') {
+    for (let i=0;i<9;i++) {
+      const x = -len*0.32 + Math.random()*len*0.6;
+      const y = (Math.random()-0.5)*len*0.22;
+      c.beginPath(); c.arc(x,y, len*0.018+Math.random()*len*0.012, 0, Math.PI*2); c.fill();
+    }
+  } else if (pattern === 'lateral') {
+    c.lineWidth = Math.max(2, len*0.025);
+    c.beginPath(); c.moveTo(-len*0.42,0); c.lineTo(len*0.36,0); c.stroke();
+  } else if (pattern === 'backwave') {
+    c.lineWidth = Math.max(2, len*0.02);
+    for (let i=0;i<4;i++) {
+      const yy = -len*0.16 + i*len*0.04;
+      c.beginPath();
+      for (let x=-len*0.35;x<=len*0.35;x+=len*0.06) c.lineTo(x, yy + Math.sin(x*0.1+i)*len*0.02);
+      c.stroke();
+    }
+  }
+  c.restore();
+}
+
+function drawFishShape(c, def, len) {
+  const colors = COLOR_PRESETS[def.colorKey];
+  const grad = bodyGradient(c, colors, len);
+  const h = len * ({torpedo:0.30, oval:0.44, slender:0.17, flat:0.5, spiny:0.34, turtle:0.5, squid:0.28, crab:0.6}[def.bodyType] || 0.3);
+
+  c.save();
+  if (def.bodyType === 'turtle') {
+    c.fillStyle = grad;
+    c.beginPath(); c.ellipse(0,0, len*0.4, h*0.5, 0, 0, Math.PI*2); c.fill();
+    c.strokeStyle = colors.dark; c.lineWidth = 2; c.stroke();
+    c.fillStyle = colors.dark;
+    c.beginPath(); c.ellipse(len*0.42, 0, len*0.11, h*0.16, 0, 0, Math.PI*2); c.fill();
+    for (const s of [-1,1]) {
+      c.beginPath(); c.ellipse(len*0.12, s*h*0.32, len*0.09, h*0.1, s*0.5, 0, Math.PI*2); c.fill();
+      c.beginPath(); c.ellipse(-len*0.22, s*h*0.28, len*0.08, h*0.09, -s*0.5, 0, Math.PI*2); c.fill();
+    }
+  } else if (def.bodyType === 'squid') {
+    c.fillStyle = grad;
+    c.beginPath();
+    c.moveTo(len*0.32, 0);
+    c.quadraticCurveTo(len*0.15, -h*0.55, -len*0.2, -h*0.4);
+    c.quadraticCurveTo(-len*0.42, -h*0.15, -len*0.42, 0);
+    c.quadraticCurveTo(-len*0.42, h*0.15, -len*0.2, h*0.4);
+    c.quadraticCurveTo(len*0.15, h*0.55, len*0.32, 0);
+    c.closePath(); c.fill();
+    c.strokeStyle = colors.dark; c.lineWidth = 1.5; c.stroke();
+    c.fillStyle = colors.dark;
+    c.beginPath(); c.moveTo(-len*0.2,-h*0.4); c.lineTo(-len*0.42,-h*0.55); c.lineTo(-len*0.28,-h*0.18); c.closePath(); c.fill();
+    c.beginPath(); c.moveTo(-len*0.2,h*0.4); c.lineTo(-len*0.42,h*0.55); c.lineTo(-len*0.28,h*0.18); c.closePath(); c.fill();
+    c.strokeStyle = colors.dark; c.lineWidth = 2;
+    for (let i=0;i<5;i++) {
+      const yy = (i-2)*h*0.14;
+      c.beginPath(); c.moveTo(len*0.3,0); c.quadraticCurveTo(len*0.5, yy, len*0.62, yy*1.3); c.stroke();
+    }
+  } else if (def.bodyType === 'crab') {
+    c.fillStyle = grad;
+    c.beginPath(); c.ellipse(0,0, len*0.36, h*0.5, 0, 0, Math.PI*2); c.fill();
+    c.strokeStyle = colors.dark; c.lineWidth = 2; c.stroke();
+    c.fillStyle = colors.base;
+    for (const s of [-1,1]) {
+      c.beginPath();
+      c.moveTo(len*0.28, s*h*0.2);
+      c.quadraticCurveTo(len*0.5, s*h*0.5, len*0.46, s*h*0.62);
+      c.quadraticCurveTo(len*0.4, s*h*0.5, len*0.24, s*h*0.34);
+      c.closePath(); c.fill();
+      for (let i=0;i<3;i++) {
+        c.strokeStyle = colors.dark; c.lineWidth = 3;
+        c.beginPath(); c.moveTo(-len*0.1+i*len*0.12, s*h*0.42); c.lineTo(-len*0.16+i*len*0.12, s*h*0.66); c.stroke();
+      }
+    }
+  } else if (def.bodyType === 'flat') {
+    c.fillStyle = grad;
+    c.beginPath();
+    c.moveTo(len*0.46, 0);
+    c.quadraticCurveTo(len*0.2, -h*0.5, -len*0.3, -h*0.34);
+    c.quadraticCurveTo(-len*0.5, -h*0.1, -len*0.5, 0);
+    c.quadraticCurveTo(-len*0.5, h*0.1, -len*0.3, h*0.34);
+    c.quadraticCurveTo(len*0.2, h*0.5, len*0.46, 0);
+    c.closePath(); c.fill();
+    c.strokeStyle = colors.dark; c.lineWidth = 1.6; c.stroke();
+    c.fillStyle = colors.dark;
+    c.beginPath(); c.arc(len*0.28, -h*0.12, len*0.02+2, 0, Math.PI*2); c.fill();
+    c.strokeStyle = 'rgba(0,0,0,0.35)'; c.lineWidth = 1;
+    c.beginPath(); c.moveTo(len*0.4,-h*0.12); c.quadraticCurveTo(0,-h*0.46,-len*0.46,-h*0.06); c.stroke();
+    c.beginPath(); c.moveTo(len*0.4,h*0.12); c.quadraticCurveTo(0,h*0.46,-len*0.46,h*0.06); c.stroke();
+  } else {
+    // torpedo / oval / slender / spiny share a fusiform silhouette with different proportions
+    const noseX = len*0.5, tailX = -len*0.5;
+    c.fillStyle = grad;
+    c.beginPath();
+    c.moveTo(noseX, 0);
+    c.quadraticCurveTo(len*0.28, -h*0.55, tailX*0.62, -h*0.42);
+    c.quadraticCurveTo(tailX*0.85, -h*0.14, tailX, 0);
+    c.quadraticCurveTo(tailX*0.85, h*0.14, tailX*0.62, h*0.42);
+    c.quadraticCurveTo(len*0.28, h*0.55, noseX, 0);
+    c.closePath(); c.fill();
+    c.strokeStyle = colors.dark; c.lineWidth = 1.6; c.stroke();
+
+    // tail fin
+    c.fillStyle = colors.dark;
+    if (def.bodyType === 'torpedo') {
+      c.beginPath();
+      c.moveTo(tailX*0.62,0);
+      c.lineTo(tailX*1.18, -h*0.5);
+      c.lineTo(tailX*0.95, 0);
+      c.lineTo(tailX*1.18, h*0.5);
+      c.closePath(); c.fill();
+    } else if (def.bodyType === 'slender') {
+      c.beginPath();
+      c.moveTo(tailX*0.9,0);
+      c.quadraticCurveTo(tailX*1.15,-h*0.3,tailX*1.2,0);
+      c.quadraticCurveTo(tailX*1.15,h*0.3,tailX*0.9,0);
+      c.fill();
+    } else {
+      c.beginPath();
+      c.moveTo(tailX*0.7,0);
+      c.quadraticCurveTo(tailX*1.1,-h*0.42,tailX*1.05,0);
+      c.quadraticCurveTo(tailX*1.1,h*0.42,tailX*0.7,0);
+      c.fill();
+    }
+
+    // dorsal fin
+    c.fillStyle = colors.dark;
+    if (def.bodyType === 'spiny') {
+      c.beginPath();
+      c.moveTo(len*0.05,-h*0.5);
+      for (let i=0;i<5;i++) {
+        const x = len*0.05 - i*len*0.13;
+        c.lineTo(x, -h*0.95); c.lineTo(x-len*0.06, -h*0.5);
+      }
+      c.closePath(); c.fill();
+    } else if (def.bodyType === 'oval') {
+      c.beginPath();
+      c.moveTo(len*0.12,-h*0.5);
+      c.quadraticCurveTo(-len*0.05,-h*1.0,-len*0.25,-h*0.5);
+      c.closePath(); c.fill();
+    } else if (def.bodyType === 'torpedo') {
+      c.beginPath();
+      c.moveTo(0,-h*0.5); c.lineTo(-len*0.08,-h*0.9); c.lineTo(-len*0.2,-h*0.5);
+      c.closePath(); c.fill();
+    }
+
+    // pectoral fin
+    c.beginPath();
+    c.moveTo(len*0.14,h*0.2); c.quadraticCurveTo(len*0.05,h*0.7,-len*0.06,h*0.32);
+    c.closePath(); c.fill();
+
+    // whiskers (catfish)
+    if (def.whiskers) {
+      c.strokeStyle = colors.dark; c.lineWidth = Math.max(1.4, len*0.012);
+      for (const s of [-1,1]) {
+        c.beginPath(); c.moveTo(noseX-2, s*h*0.1);
+        c.quadraticCurveTo(noseX+len*0.15, s*h*0.25, noseX+len*0.22, s*h*0.1);
+        c.stroke();
+      }
+    }
+
+    // eye
+    c.fillStyle = '#101010';
+    c.beginPath(); c.arc(len*0.35, -h*0.1, Math.max(1.6, len*0.02), 0, Math.PI*2); c.fill();
+  }
+
+  if (def.pattern) drawPattern(c, def.pattern, colors, len);
+  c.restore();
+}
+
+/* =========================================================
+   Foreground game elements
+========================================================= */
+function drawBobber() {
+  if (state === 'idle' || state === 'result') return;
+  ctx.save();
+  ctx.translate(bobber.x, bobber.y);
+  ctx.beginPath(); ctx.ellipse(0,4,9,3,0,0,Math.PI*2); ctx.fillStyle='rgba(0,0,0,0.25)'; ctx.fill();
+  ctx.beginPath(); ctx.arc(0,0,7,0,Math.PI*2); ctx.fillStyle='#ff5252'; ctx.fill();
+  ctx.beginPath(); ctx.arc(0,-4,7,Math.PI,Math.PI*2); ctx.fillStyle='#fff'; ctx.fill();
+  ctx.restore();
+  if (state === 'bite') {
+    ctx.fillStyle = '#ffeb3b'; ctx.font = 'bold 28px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('!', bobber.x, bobber.y-22);
+  }
+}
+
+function drawLine() {
+  ctx.strokeStyle = 'rgba(255,255,255,0.65)'; ctx.lineWidth = 1.4;
+  ctx.beginPath();
+  ctx.moveTo(rod.tipX, rod.tipY);
+  ctx.quadraticCurveTo((rod.tipX+bobber.x)/2, Math.min(rod.tipY,bobber.y)-50, bobber.x, bobber.y);
+  ctx.stroke();
+}
+
+function drawReelUI() {
+  if (state !== 'reeling') return;
+  const barX = W/2-170, barY = H-130, barW = 340, barH = 24;
+
+  ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(barX,barY,barW,barH);
+  ctx.fillStyle = RARITY[currentFish.rarity].color; ctx.globalAlpha = 0.55;
+  ctx.fillRect(barX+reel.zoneStart*barW, barY, reel.zoneWidth*barW, barH);
+  ctx.globalAlpha = 1;
+  const nx = barX + needleX()*barW;
+  ctx.fillStyle = reel.flashT>0 ? '#fff' : (reel.runActive ? '#ff5252' : '#ff1744');
+  ctx.fillRect(nx-2.2, barY-4, 4.4, barH+8);
+  ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.strokeRect(barX,barY,barW,barH);
+
+  ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(barX,barY-34,barW,14);
+  ctx.fillStyle = '#66bb6a'; ctx.fillRect(barX,barY-34,barW*(reel.progress/100),14);
+  ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(barX,barY-18,barW,10);
+  ctx.fillStyle = reel.tension>70 ? '#ff1744' : '#e53935'; ctx.fillRect(barX,barY-18,barW*(reel.tension/100),10);
+
+  ctx.fillStyle = '#fff'; ctx.font = 'bold 12px sans-serif'; ctx.textAlign = 'left';
+  ctx.fillText('진행도', barX, barY-38);
+  ctx.fillText('장력', barX, barY-22);
+
+  ctx.textAlign = 'center'; ctx.font = 'bold 13px sans-serif';
+  ctx.fillText(`${starsStr(RARITY[currentFish.rarity].stars)}`, W/2, barY-46);
+}
+
+function draw(now) {
+  ctx.save();
+  if (shake > 0) ctx.translate((Math.random()-0.5)*shake, (Math.random()-0.5)*shake);
+  drawBackground(now);
+  drawLine();
+  drawBobber();
+  drawReelUI();
+  ctx.restore();
+}
+
+function gameLoop(now) {
+  const dt = Math.min((now-lastTime)/1000, 0.033);
+  lastTime = now;
+  update(dt);
+  draw(now);
+
+  // draw hooked fish inside the reveal card (canvas hero shot)
+  if (state === 'result' && resultData && resultData.ok) {
+    drawHeroFish();
+  }
+  requestAnimationFrame(gameLoop);
+}
+
+let heroCanvas, heroCtx;
+function ensureHeroCanvas() {
+  if (heroCanvas) return;
+  heroCanvas = document.createElement('canvas');
+  heroCanvas.width = 320; heroCanvas.height = 200;
+  heroCanvas.style.cssText = 'display:block;margin:0 auto 4px;';
+  document.getElementById('catchCard').insertBefore(heroCanvas, document.getElementById('newTag'));
+  heroCtx = heroCanvas.getContext('2d');
+}
+function drawHeroFish() {
+  ensureHeroCanvas();
+  heroCtx.clearRect(0,0,heroCanvas.width, heroCanvas.height);
+  // splash
+  heroCtx.save();
+  heroCtx.translate(heroCanvas.width/2, heroCanvas.height*0.82);
+  heroCtx.fillStyle = 'rgba(255,255,255,0.5)';
+  for (let i=0;i<10;i++) {
+    const ang = (i/10)*Math.PI - Math.PI/2 - Math.PI/2;
+    heroCtx.beginPath();
+    heroCtx.ellipse(Math.cos(ang)*70, Math.sin(ang)*18, 14, 5, ang, 0, Math.PI*2);
+    heroCtx.fill();
+  }
+  heroCtx.restore();
+
+  heroCtx.save();
+  heroCtx.translate(heroCanvas.width/2, heroCanvas.height*0.46);
+  heroCtx.rotate(-0.12);
+  drawFishShape(heroCtx, currentFish, 200);
+  heroCtx.restore();
+}
+
+/* =========================================================
+   Dex UI
+========================================================= */
+function dexFishSVG(def, locked) {
+  const c = COLOR_PRESETS[def.colorKey];
+  const base = locked ? '#3a4750' : c.base;
+  const dark = locked ? '#232b31' : c.dark;
+  let body = '';
+  switch (def.bodyType) {
+    case 'oval':
+      body = `<path d="M2 12 C6 1,24 1,30 12 C24 23,6 23,2 12 Z" fill="${base}"/><path d="M15 1 Q6 -6 2 2 Z" fill="${dark}"/>`;
+      break;
+    case 'flat':
+      body = `<path d="M2 12 C4 4,20 3,32 12 C20 21,4 20,2 12 Z" fill="${base}"/>`;
+      break;
+    case 'slender':
+      body = `<path d="M0 12 C4 8,28 8,34 12 C28 16,4 16,0 12 Z" fill="${base}"/>`;
+      break;
+    case 'spiny':
+      body = `<path d="M2 12 C6 3,22 2,28 12 C22 21,6 21,2 12 Z" fill="${base}"/><path d="M14 2 L11 -5 L18 1 Z" fill="${dark}"/>`;
+      break;
+    case 'turtle':
+      body = `<ellipse cx="15" cy="12" rx="13" ry="9" fill="${base}"/><ellipse cx="27" cy="12" rx="4" ry="3" fill="${dark}"/>`;
+      break;
+    case 'squid':
+      body = `<path d="M6 12 C2 4,2 20,6 12 M6 12 C12 2,24 4,30 12 C24 20,12 22,6 12 Z" fill="${base}"/>`;
+      break;
+    case 'crab':
+      body = `<ellipse cx="15" cy="12" rx="12" ry="8" fill="${base}"/><path d="M25 8 L31 3 M25 16 L31 21" stroke="${dark}" stroke-width="2" fill="none"/>`;
+      break;
+    default: // torpedo
+      body = `<path d="M2 12 C6 4,22 4,26 12 C22 20,6 20,2 12 Z" fill="${base}"/><path d="M26 12 L34 6 L34 18 Z" fill="${dark}"/>`;
+  }
+  return `<svg width="36" height="24" viewBox="0 0 36 24" xmlns="http://www.w3.org/2000/svg">${body}${locked ? '' : `<circle cx="9" cy="10" r="1.5" fill="#000"/>`}</svg>`;
+}
+
+let dexTab = 'lake';
+function renderDex() {
+  const grid = document.getElementById('dexGrid');
+  grid.innerHTML = '';
+  const list = (dexTab === 'lake' ? LAKE_FISH : SEA_FISH).map(fishDef);
+  for (const def of list) {
+    const caught = dex[def.name];
+    const card = document.createElement('div');
+    card.className = 'dexCard' + (caught ? ' caught' : '');
+    if (caught) card.style.setProperty('--rc', RARITY[def.rarity].color);
+    card.innerHTML = `
+      <div>${dexFishSVG(def, !caught)}</div>
+      <div class="name">${caught ? def.name : '???'}</div>
+      <div class="stars" style="color:${caught ? RARITY[def.rarity].color : '#555'}">${caught ? starsStr(RARITY[def.rarity].stars) : '☆☆☆☆☆'}</div>
+      ${caught ? `<div class="best">최대 ${caught.best}cm · ${caught.count}마리</div>` : ''}
+    `;
+    grid.appendChild(card);
+  }
+}
+
+document.getElementById('dexBtn').addEventListener('click', () => { document.getElementById('dexOverlay').style.display='flex'; renderDex(); });
+document.getElementById('dexClose').addEventListener('click', () => { document.getElementById('dexOverlay').style.display='none'; });
+document.getElementById('tabLake').addEventListener('click', () => {
+  dexTab='lake'; document.getElementById('tabLake').classList.add('active'); document.getElementById('tabSea').classList.remove('active'); renderDex();
+});
+document.getElementById('tabSea').addEventListener('click', () => {
+  dexTab='sea'; document.getElementById('tabSea').classList.add('active'); document.getElementById('tabLake').classList.remove('active'); renderDex();
+});
+document.getElementById('locLake').addEventListener('click', () => {
+  spot='lake'; state='idle';
+  document.getElementById('locLake').classList.add('active'); document.getElementById('locSea').classList.remove('active');
+  setMsg("스페이스바를 눌러 캐스팅하세요");
+});
+document.getElementById('locSea').addEventListener('click', () => {
+  spot='sea'; state='idle';
+  document.getElementById('locSea').classList.add('active'); document.getElementById('locLake').classList.remove('active');
+  setMsg("스페이스바를 눌러 캐스팅하세요");
+});
+
+updateTopStats();
+requestAnimationFrame(gameLoop);
+</script>
+</body>
+</html>
