@@ -489,8 +489,8 @@ const RARITY = {
   common:    { label:"COMMON",    color:"#b0bec5", stars:1, points:12,  hookWindow:0.68, zoneWidthRatio:0.27, needleSpeed:1.35, tensionRate:9.5,  gain:11 },
   uncommon:  { label:"UNCOMMON",  color:"#4fc3f7", stars:2, points:36,  hookWindow:0.58, zoneWidthRatio:0.23, needleSpeed:1.55, tensionRate:9.8,  gain:10.5 },
   rare:      { label:"RARE",      color:"#ba68c8", stars:3, points:95,  hookWindow:0.50, zoneWidthRatio:0.19, needleSpeed:1.75, tensionRate:10.3, gain:9.5 },
-  legendary: { label:"LEGENDARY", color:"#ffd54f", stars:5, points:300, hookWindow:0.40, zoneWidthRatio:0.145,needleSpeed:2.05, tensionRate:11.2, gain:8.5 },
-  boss:      { label:"BOSS",      color:"#ff3d3d", stars:5, points:900, hookWindow:0.34, zoneWidthRatio:0.13, needleSpeed:2.0,  tensionRate:7.5,  gain:9.5 },
+  legendary: { label:"LEGENDARY", color:"#ffd54f", stars:5, points:300, hookWindow:0.44, zoneWidthRatio:0.17, needleSpeed:1.85, tensionRate:10.0, gain:9.5 },
+  boss:      { label:"BOSS",      color:"#ff3d3d", stars:5, points:900, hookWindow:0.38, zoneWidthRatio:0.19, needleSpeed:1.7,  tensionRate:5.8,  gain:13 },
 };
 const RARITY_WEIGHT = { common:50, uncommon:28, rare:15, legendary:7 };
 const BOSS_CHANCE_BASE = 0.045;
@@ -872,11 +872,11 @@ function update(dt) {
       reel.runTimer -= dt;
       if (reel.runTimer <= 0) { reel.runActive = false; reel.nextRunAt = (isBoss?1.6:2.2) + Math.random()*2; }
     }
-    if (isBoss && !reel.finalStandDone && reel.progress >= 60) {
+    if (isBoss && !reel.finalStandDone && reel.progress >= 72) {
       reel.finalStand = true;
       if (!reel._finalStandStarted) {
         reel._finalStandStarted = true;
-        reel._finalStandTimer = 2.4;
+        reel._finalStandTimer = 1.7;
         setMsg("!! 마지막 발악이다 – 버텨라 !!");
       }
       reel._finalStandTimer -= dt;
@@ -887,12 +887,12 @@ function update(dt) {
     }
     document.getElementById('finalStandWarning').style.display = reel.finalStand ? 'block' : 'none';
 
-    const finalMul = reel.finalStand ? 1.45 : 1;
-    const runMul = reel.runActive ? 1.9 : 1;
+    const finalMul = reel.finalStand ? (isBoss?1.15:1.45) : 1;
+    const runMul = reel.runActive ? (isBoss?1.5:1.9) : 1;
     const speedMul = (1 + 0.7*(reel.progress/100)) * runMul * finalMul;
-    if (isBoss && Math.random() < dt*0.4) reel.needleDir *= -1;
+    if (isBoss && Math.random() < dt*0.3) reel.needleDir *= -1;
     reel.needleT += dt * conf.needleSpeed * speedMul * (isBoss ? reel.needleDir : 1);
-    reel.tension = Math.min(100, reel.tension + dt * conf.tensionRate * tier.tensionMul * (reel.runActive?1.6:1) * (reel.finalStand?1.25:1));
+    reel.tension = Math.min(100, reel.tension + dt * conf.tensionRate * tier.tensionMul * (reel.runActive?(isBoss?1.3:1.6):1) * (reel.finalStand?(isBoss?1.1:1.25):1));
     if (reel.flashT > 0) reel.flashT -= dt;
     if (reel.tension >= 100) catchFail(isBoss ? 'escaped' : 'snapped');
   } else if (state === 'result') {
@@ -921,13 +921,13 @@ function handleSpace() {
       const center = reel.zoneStart + reel.zoneWidth/2;
       const dNorm = 1 - Math.min(1, Math.abs(nx-center)/(reel.zoneWidth/2));
       reel.progress = Math.min(100, reel.progress + (conf.gain + dNorm*7) * tier.gainMul);
-      reel.tension = Math.max(0, reel.tension - (isBoss?11:12));
-      reel.zoneWidth = Math.min(0.5, Math.max(0.075, conf.zoneWidthRatio * tier.zoneMul * (1 - 0.35*(reel.progress/100))));
+      reel.tension = Math.max(0, reel.tension - (isBoss?15:12));
+      reel.zoneWidth = Math.min(0.5, Math.max(0.1, conf.zoneWidthRatio * tier.zoneMul * (1 - (isBoss?0.2:0.35)*(reel.progress/100))));
       reel.zoneStart = Math.random() * (1 - reel.zoneWidth);
       if (reel.progress >= 100) catchSuccess();
     } else {
-      reel.progress = Math.max(0, reel.progress - (isBoss?10:9));
-      reel.tension = Math.min(100, reel.tension + (isBoss?14:13) * tier.tensionMul);
+      reel.progress = Math.max(0, reel.progress - (isBoss?7:9));
+      reel.tension = Math.min(100, reel.tension + (isBoss?10:13) * tier.tensionMul);
       shake = isBoss ? 7 : 4;
     }
   }
