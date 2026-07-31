@@ -41,8 +41,13 @@
     font-size: 12px; font-weight: bold; color: #dce6ef; background: rgba(255,255,255,0.08);
     padding: 3px 10px; border-radius: 20px; white-space: nowrap;
   }
-  #expTrack { flex: 1; height: 8px; background: rgba(255,255,255,0.12); border-radius: 6px; overflow: hidden; }
+  #expTrack { position: relative; flex: 1; height: 14px; background: rgba(255,255,255,0.12); border-radius: 7px; overflow: hidden; }
   #expFill { height: 100%; width: 0%; background: linear-gradient(90deg,#5fd0ff,#2b9fe0); transition: width 0.25s; }
+  #expLabel {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    font-size: 9.5px; font-weight: bold; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,0.7); letter-spacing: 0.3px;
+    pointer-events: none;
+  }
 
   #stageWrap { position: relative; border-radius: 10px; overflow: hidden; box-shadow: 0 14px 46px rgba(0,0,0,0.65); }
   canvas { background: #123; display: block; }
@@ -246,7 +251,7 @@
   <div id="levelBar">
     <div class="lvChip">Lv.<span id="lvNum">1</span></div>
     <div id="lvTitle">초보 낚시꾼</div>
-    <div id="expTrack"><div id="expFill"></div></div>
+    <div id="expTrack"><div id="expFill"></div><div id="expLabel">0 / 500</div></div>
   </div>
 
   <div id="stageWrap">
@@ -816,6 +821,7 @@ function updateTopStats() {
   const prog = (totalScore % LV_THRESHOLD) / LV_THRESHOLD * 100;
   document.getElementById('lvNum').textContent = lv;
   document.getElementById('expFill').style.width = prog + '%';
+  document.getElementById('expLabel').textContent = `${totalScore % LV_THRESHOLD} / ${LV_THRESHOLD}`;
   document.getElementById('lvTitle').textContent = getTier(lv).title;
   if (lv > lastKnownLevel) {
     showLevelUp(lv);
