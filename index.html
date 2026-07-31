@@ -277,6 +277,64 @@
   }
   #syncStatus { font-size: 12px; color: #7fe0ff; min-height: 16px; }
   #syncClose { align-self: flex-end; }
+
+  /* ---- Achievements ---- */
+  #achOverlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.78);
+    display: none; align-items: center; justify-content: center; z-index: 21;
+  }
+  #achPanel {
+    width: 880px; max-height: 84vh; background: linear-gradient(180deg,#16232f,#0e1720); border-radius: 14px;
+    padding: 18px 20px; color: #fff; display: flex; flex-direction: column; gap: 10px;
+    box-shadow: 0 10px 50px rgba(0,0,0,0.7); border: 1px solid rgba(255,255,255,0.08);
+  }
+  #achPanel h2 { margin: 0; font-size: 20px; }
+  #achGrid {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;
+    overflow-y: auto; padding: 6px 2px; max-height: 60vh;
+  }
+  .achCard {
+    background: linear-gradient(180deg,#1e2f3d,#152029); border-radius: 10px; padding: 12px 10px; text-align: center;
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    border: 1px solid rgba(255,255,255,0.06); opacity: 0.55;
+  }
+  .achCard.unlocked { opacity: 1; border-color: #ffd54f; box-shadow: 0 0 10px -2px rgba(255,213,79,0.6); }
+  .achCard .icon { font-size: 26px; }
+  .achCard .name { font-size: 12px; font-weight: bold; }
+  .achCard .desc { font-size: 10.5px; color: #9db0c0; }
+  .achCard .reward { font-size: 10.5px; color: #ffd54f; font-weight: bold; }
+
+  #achToast {
+    position: fixed; top: 16px; right: 16px; z-index: 40;
+    display: flex; align-items: center; gap: 10px;
+    background: linear-gradient(135deg,#1e2f3d,#0e1720); border: 1px solid #ffd54f; border-radius: 12px;
+    padding: 10px 16px; box-shadow: 0 8px 24px rgba(0,0,0,0.5), 0 0 16px rgba(255,213,79,0.4);
+    transform: translateX(140%); transition: transform 0.4s cubic-bezier(.2,.9,.3,1);
+  }
+  #achToast.show { transform: translateX(0); }
+  #achToast .icon { font-size: 28px; }
+  #achToast .label { font-size: 10px; color: #ffd54f; font-weight: 900; letter-spacing: 1px; }
+  #achToast .name { font-size: 14px; color: #fff; font-weight: bold; }
+  #achToast .reward { font-size: 11px; color: #7fe0ff; }
+
+  /* ---- Tutorial ---- */
+  #tutorialOverlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.82);
+    display: none; align-items: center; justify-content: center; z-index: 30;
+  }
+  #tutorialPanel {
+    width: 420px; background: linear-gradient(180deg,#16232f,#0e1720); border-radius: 16px;
+    padding: 26px 26px 20px; color: #fff; text-align: center;
+    box-shadow: 0 10px 50px rgba(0,0,0,0.7); border: 1px solid rgba(255,255,255,0.08);
+  }
+  .tutIcon { font-size: 48px; margin-bottom: 8px; }
+  .tutTitle { margin: 0 0 8px; font-size: 20px; }
+  .tutText { font-size: 13px; color: #cfe0ea; line-height: 1.6; min-height: 80px; }
+  #tutorialDots { display: flex; justify-content: center; gap: 6px; margin: 14px 0; }
+  .tutDot { width: 7px; height: 7px; border-radius: 50%; background: rgba(255,255,255,0.25); }
+  .tutDot.active { background: #5fd0ff; }
+  #tutorialNav { display: flex; justify-content: space-between; gap: 8px; }
+  #tutorialNav #tutNext { margin-left: auto; }
 </style>
 </head>
 <body>
@@ -285,8 +343,11 @@
     <button class="btn" id="dexBtn">📖 도감 (<span id="dexCountTop">0</span>/<span id="dexTotalCount">80</span>)</button>
     <div class="chip">🐟 <b id="totalCatches">0</b>마리 &nbsp;·&nbsp; ⭐ <b id="totalScore">0</b>점 &nbsp;·&nbsp; 💰 <b id="creditsNum">0</b>C</div>
     <div>
+      <button class="btn" id="achBtn">🏆 업적</button>
       <button class="btn" id="shopBtn">🛒 상점</button>
       <button class="btn" id="syncBtn">🔗 동기화</button>
+      <button class="btn" id="soundBtn">🔊</button>
+      <button class="btn" id="helpBtn">❓</button>
     </div>
   </div>
 
@@ -402,6 +463,37 @@
     <div id="shopGrid"></div>
     <div id="shopStatus"></div>
     <button class="btn" id="shopClose" style="align-self:flex-end;">닫기</button>
+  </div>
+</div>
+
+<div id="achOverlay">
+  <div id="achPanel">
+    <h2>🏆 업적</h2>
+    <div id="achGrid"></div>
+    <button class="btn" id="achClose" style="align-self:flex-end;">닫기</button>
+  </div>
+</div>
+
+<div id="achToast">
+  <div class="icon" id="achToastIcon">🏆</div>
+  <div class="info">
+    <div class="label">업적 달성!</div>
+    <div class="name" id="achToastName">첫 손맛</div>
+    <div class="reward" id="achToastReward">+20 크레딧</div>
+  </div>
+</div>
+
+<div id="tutorialOverlay">
+  <div id="tutorialPanel">
+    <div class="tutIcon" id="tutIcon">🎣</div>
+    <h2 class="tutTitle" id="tutTitle">캐스팅하기</h2>
+    <p class="tutText" id="tutText"></p>
+    <div id="tutorialDots"></div>
+    <div id="tutorialNav">
+      <button class="btn" id="tutSkip">건너뛰기</button>
+      <button class="btn" id="tutPrev">이전</button>
+      <button class="btn" id="tutNext">다음</button>
+    </div>
   </div>
 </div>
 
@@ -758,7 +850,10 @@ const BAIT_DURATION_MS = 2*60*1000;
 const BAIT_RARE_MUL = 1.30;
 
 function defaultEconomy() {
-  return { credits:0, reels:['basic'], rods:['basic'], equippedReel:'basic', equippedRod:'basic', baitCount:0, baitActiveUntil:0 };
+  return {
+    credits:0, reels:['basic'], rods:['basic'], equippedReel:'basic', equippedRod:'basic',
+    baitCount:0, baitActiveUntil:0, trophyCatches:0, unlockedAchievements:[],
+  };
 }
 let economy = Object.assign(defaultEconomy(), JSON.parse(localStorage.getItem('fishingEconomyV1') || '{}'));
 function saveEconomy() { localStorage.setItem('fishingEconomyV1', JSON.stringify(economy)); }
@@ -771,6 +866,67 @@ function equipmentBuffs() {
   };
 }
 function isBaitActive() { return economy.baitActiveUntil > Date.now(); }
+
+/* =========================================================
+   Sound effects (synthesized via Web Audio API — no asset files)
+========================================================= */
+let soundEnabled = localStorage.getItem('fishingSoundV1') !== 'off';
+let audioCtx = null;
+function ensureAudio() {
+  if (!soundEnabled) return null;
+  if (!audioCtx) {
+    try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return null; }
+  }
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  return audioCtx;
+}
+function beep(freq, duration, type, gainVal, delay) {
+  const ctx = ensureAudio();
+  if (!ctx) return;
+  const t0 = ctx.currentTime + (delay || 0);
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = type || 'sine';
+  osc.frequency.setValueAtTime(freq, t0);
+  gain.gain.setValueAtTime(0.0001, t0);
+  gain.gain.linearRampToValueAtTime(gainVal || 0.12, t0 + 0.01);
+  gain.gain.exponentialRampToValueAtTime(0.0001, t0 + duration);
+  osc.connect(gain); gain.connect(ctx.destination);
+  osc.start(t0); osc.stop(t0 + duration + 0.02);
+}
+function sweepBeep(freqStart, freqEnd, duration, type, gainVal) {
+  const ctx = ensureAudio();
+  if (!ctx) return;
+  const t0 = ctx.currentTime;
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = type || 'sine';
+  osc.frequency.setValueAtTime(freqStart, t0);
+  osc.frequency.exponentialRampToValueAtTime(Math.max(30,freqEnd), t0 + duration);
+  gain.gain.setValueAtTime(gainVal || 0.12, t0);
+  gain.gain.exponentialRampToValueAtTime(0.0001, t0 + duration);
+  osc.connect(gain); gain.connect(ctx.destination);
+  osc.start(t0); osc.stop(t0 + duration + 0.02);
+}
+const SFX = {
+  cast: () => sweepBeep(500, 900, 0.18, 'sine', 0.08),
+  splash: () => { sweepBeep(300, 90, 0.28, 'sine', 0.14); beep(180, 0.1, 'triangle', 0.1, 0.02); },
+  bite: () => { beep(880, 0.08, 'square', 0.12); beep(1200, 0.1, 'square', 0.1, 0.09); },
+  bossAlert: () => { sweepBeep(140, 55, 0.6, 'sawtooth', 0.18); beep(70, 0.5, 'sine', 0.16, 0.08); },
+  tapHit: () => beep(700, 0.055, 'triangle', 0.11),
+  tapMiss: () => beep(150, 0.12, 'sawtooth', 0.08),
+  catchSuccess: (big) => { [523,659,784,1047].forEach((f,i) => beep(f, 0.18, 'triangle', big?0.16:0.12, i*0.09)); },
+  catchFail: () => sweepBeep(320, 80, 0.35, 'sawtooth', 0.1),
+  levelUp: () => { [523,659,784,1046,1318].forEach((f,i) => beep(f, 0.14, 'triangle', 0.14, i*0.07)); },
+  achievement: () => { [660,880,1100].forEach((f,i) => beep(f, 0.15, 'sine', 0.13, i*0.08)); },
+  ui: () => beep(700, 0.05, 'sine', 0.07),
+};
+function toggleSound() {
+  soundEnabled = !soundEnabled;
+  localStorage.setItem('fishingSoundV1', soundEnabled ? 'on' : 'off');
+  document.getElementById('soundBtn').textContent = soundEnabled ? '🔊' : '🔇';
+  if (soundEnabled) SFX.ui();
+}
 
 /* =========================================================
    Canvas & core state
@@ -863,10 +1019,12 @@ function startCast(power) {
   setMsg("풍덩! 입질을 기다리는 중...");
   const rig = document.getElementById('rodRig');
   rig.classList.remove('flick'); void rig.offsetWidth; rig.classList.add('flick');
+  SFX.cast();
 }
 function beginWaiting() {
   state = 'waiting'; waitTimer = 2 + Math.random() * 4.5;
   ripples.push({ x: bobber.x, y: bobber.y, t: 0 });
+  SFX.splash();
 }
 
 function triggerBite() {
@@ -881,6 +1039,7 @@ function triggerBite() {
   shake = isBoss ? 18 : 8;
   document.getElementById('bossBanner').style.display = isBoss ? 'block' : 'none';
   setMsg(isBoss ? "!! 초대형 어종이다 – 지금이다 !!" : "지금이다! 탭하세요!");
+  if (isBoss) SFX.bossAlert(); else SFX.bite();
 }
 
 function beginReeling() {
@@ -910,7 +1069,9 @@ function catchSuccess() {
   if (isTrophy) points = Math.round(points * 1.5);
   totalScore += points; saveScore();
   const creditsEarned = Math.max(1, Math.round(points / 4));
-  economy.credits += creditsEarned; saveEconomy();
+  economy.credits += creditsEarned;
+  if (isTrophy) economy.trophyCatches = (economy.trophyCatches || 0) + 1;
+  saveEconomy();
 
   const isNew = !dex[currentFish.name];
   const entry = dex[currentFish.name] || { count:0, best:0, rarity:currentFish.rarity, habitat:spot };
@@ -923,8 +1084,10 @@ function catchSuccess() {
 
   resultData = { ok:true, name:currentFish.name, rarity:currentFish.rarity, size, points, creditsEarned, isNew, isTrophy, isBoss };
   showCatchReveal(resultData);
+  SFX.catchSuccess(isBoss);
   state = 'result'; resultTimer = isBoss ? 3.4 : 2.6;
   document.getElementById('stageWrap').classList.remove('bossMode');
+  checkAchievements();
 }
 
 function catchFail(reason) {
@@ -932,6 +1095,7 @@ function catchFail(reason) {
   state = 'result'; resultTimer = 1.4;
   const text = reason === 'snapped' ? "줄이 끊어졌습니다!" : reason === 'escaped' ? "괴물이 사라졌다..." : "놓쳤습니다...";
   showFailCard(text);
+  SFX.catchFail();
   document.getElementById('stageWrap').classList.remove('bossMode');
 }
 
@@ -977,6 +1141,7 @@ function showLevelUp(lv) {
     `저항 -${tensionPct}% · 성공존 +${zonePct}% · 획득량 +${gainPct}%`;
   const popup = document.getElementById('levelUpPopup');
   popup.classList.remove('show'); void popup.offsetWidth; popup.classList.add('show');
+  SFX.levelUp();
 }
 
 function updateTopStats() {
@@ -1106,6 +1271,7 @@ function handleSpace() {
   else if (state === 'reeling' && reel.phase === 'mash') {
     reel.mashProgress = Math.min(100, reel.mashProgress + 8 + Math.random()*4);
     shake = 6;
+    SFX.tapHit();
     if (reel.mashProgress >= 100) catchSuccess();
   }
   else if (state === 'reeling') {
@@ -1124,11 +1290,13 @@ function handleSpace() {
       reel.tension = Math.max(0, reel.tension - (isBoss?15:12));
       reel.zoneWidth = Math.min(0.5, Math.max(0.1, conf.zoneWidthRatio * tier.zoneMul * (1 - (isBoss?0.2:0.35)*(reel.progress/100))));
       reel.zoneStart = Math.random() * (1 - reel.zoneWidth);
+      SFX.tapHit();
       if (reel.progress >= 100) catchSuccess();
     } else {
       reel.progress = Math.max(0, reel.progress - (isBoss?7:9));
       reel.tension = Math.min(100, reel.tension + (isBoss?10:13) * tier.tensionMul);
       shake = isBoss ? 7 : 4;
+      SFX.tapMiss();
     }
   }
 }
@@ -2018,6 +2186,139 @@ function tickBaitBadge() {
 setInterval(tickBaitBadge, 1000);
 tickBaitBadge();
 
+/* =========================================================
+   Achievements
+========================================================= */
+const ACHIEVEMENTS = [
+  { id:'first_catch', icon:'🐟', name:'첫 손맛',      desc:'물고기를 처음 낚았다',          reward:20,   check: s => s.totalCatches >= 1 },
+  { id:'catch_10',    icon:'🎣', name:'손맛 좀 아네',  desc:'누적 10마리 포획',              reward:50,   check: s => s.totalCatches >= 10 },
+  { id:'catch_50',    icon:'🥇', name:'낚시꾼의 자격', desc:'누적 50마리 포획',              reward:150,  check: s => s.totalCatches >= 50 },
+  { id:'catch_200',   icon:'👑', name:'낚시 마스터',   desc:'누적 200마리 포획',             reward:500,  check: s => s.totalCatches >= 200 },
+  { id:'dex_20',      icon:'📖', name:'도감 수집가',   desc:'도감 20종 등록',                reward:200,  check: s => s.dexCount >= 20 },
+  { id:'dex_50',      icon:'📚', name:'도감의 절반',   desc:'도감 50종 등록',                reward:500,  check: s => s.dexCount >= 50 },
+  { id:'dex_all',     icon:'🏅', name:'도감 마스터',   desc:'모든 어종 등록',                reward:2000, check: s => s.dexCount >= s.dexTotal },
+  { id:'boss_1',      icon:'🦈', name:'괴물 사냥꾼',   desc:'초대형 어종 1마리 포획',        reward:300,  check: s => s.bossCatches >= 1 },
+  { id:'boss_5',      icon:'🐋', name:'괴물 헌터',     desc:'초대형 어종 5마리 포획',        reward:1000, check: s => s.bossCatches >= 5 },
+  { id:'trophy_1',    icon:'📏', name:'대물 낚시꾼',   desc:'대물(대형 개체) 1마리 포획',    reward:100,  check: s => s.trophyCatches >= 1 },
+  { id:'lv_5',        icon:'⭐', name:'낚시광 등극',   desc:'레벨 5 달성',                   reward:150,  check: s => s.level >= 5 },
+  { id:'lv_10',       icon:'🌟', name:'강태공 등극',   desc:'레벨 10 달성',                  reward:400,  check: s => s.level >= 10 },
+  { id:'world',       icon:'🌍', name:'대양 정복자',   desc:'태평양과 대서양에서 모두 포획', reward:300,  check: s => s.hasPacific && s.hasAtlantic },
+];
+
+function computeStatsSnapshot() {
+  const entries = Object.entries(dex).filter(([k]) => k !== '__economy');
+  const totalCatches = entries.reduce((s,[,e]) => s + e.count, 0);
+  const bossCatches = entries.filter(([,e]) => e.rarity === 'boss').reduce((s,[,e]) => s + e.count, 0);
+  const hasPacific = entries.some(([,e]) => e.habitat === 'pacific');
+  const hasAtlantic = entries.some(([,e]) => e.habitat === 'atlantic');
+  return {
+    totalCatches, dexCount: entries.length,
+    dexTotal: LAKE_FISH.length + SEA_FISH.length + PACIFIC_FISH.length + ATLANTIC_FISH.length + BOSS_FISH.length,
+    bossCatches, hasPacific, hasAtlantic,
+    trophyCatches: economy.trophyCatches || 0,
+    level: playerLevel(),
+  };
+}
+
+let achievementQueue = [];
+function checkAchievements() {
+  const snap = computeStatsSnapshot();
+  const unlocked = [];
+  for (const ach of ACHIEVEMENTS) {
+    if (!economy.unlockedAchievements.includes(ach.id) && ach.check(snap)) {
+      economy.unlockedAchievements.push(ach.id);
+      economy.credits += ach.reward;
+      unlocked.push(ach);
+    }
+  }
+  if (unlocked.length) {
+    saveEconomy();
+    const wasEmpty = achievementQueue.length === 0;
+    achievementQueue.push(...unlocked);
+    if (wasEmpty) showNextAchievementToast();
+    updateTopStats();
+    queueSyncPush();
+  }
+}
+function showNextAchievementToast() {
+  if (!achievementQueue.length) return;
+  const ach = achievementQueue.shift();
+  document.getElementById('achToastIcon').textContent = ach.icon;
+  document.getElementById('achToastName').textContent = ach.name;
+  document.getElementById('achToastReward').textContent = `+${ach.reward} 크레딧`;
+  const toast = document.getElementById('achToast');
+  toast.classList.add('show');
+  SFX.achievement();
+  setTimeout(() => {
+    toast.classList.remove('show');
+    setTimeout(showNextAchievementToast, 350);
+  }, 2800);
+}
+function renderAchievements() {
+  const grid = document.getElementById('achGrid');
+  grid.innerHTML = '';
+  for (const ach of ACHIEVEMENTS) {
+    const unlocked = economy.unlockedAchievements.includes(ach.id);
+    const card = document.createElement('div');
+    card.className = 'achCard' + (unlocked ? ' unlocked' : '');
+    card.innerHTML = `
+      <div class="icon">${unlocked ? ach.icon : '🔒'}</div>
+      <div class="name">${unlocked ? ach.name : '???'}</div>
+      <div class="desc">${unlocked ? ach.desc : '아직 달성하지 못했어요'}</div>
+      <div class="reward">${unlocked ? '+' + ach.reward + ' 크레딧' : ''}</div>
+    `;
+    grid.appendChild(card);
+  }
+}
+document.getElementById('achBtn').addEventListener('click', () => {
+  document.getElementById('achOverlay').style.display = 'flex';
+  renderAchievements();
+});
+document.getElementById('achClose').addEventListener('click', () => {
+  document.getElementById('achOverlay').style.display = 'none';
+});
+
+/* =========================================================
+   Tutorial guide
+========================================================= */
+const TUTORIAL_SLIDES = [
+  { icon:'🎣', title:'캐스팅하기', text:'스페이스바 또는 화면 하단 버튼으로 캐스팅하세요. 버튼을 길게 누르면 파워가 차서 더 멀리, 더 좋은 확률로 캐스팅할 수 있어요.' },
+  { icon:'❗', title:'입질 순간!', text:'찌 위에 "!"가 뜨면 그 즉시 스페이스바를 누르거나 화면을 클릭/탭하세요. 너무 늦으면 놓칩니다.' },
+  { icon:'🎯', title:'릴링 (타이밍 맞추기)', text:'바늘이 초록색 구간에 있을 때 스페이스바나 클릭! 구간을 벗어나면 장력이 올라가고, 장력이 가득 차면 줄이 끊어져요.' },
+  { icon:'👑', title:'전설·초대형 어종', text:'별 5개 어종은 게이지가 거의 다 차면 "연타 마무리" 단계가 나와요. 이때는 스페이스바나 클릭을 최대한 빠르게 연타하세요!' },
+  { icon:'🛒', title:'성장과 수집', text:'잡을 때마다 경험치와 크레딧을 얻어요. 상점에서 릴·낚싯대·미끼를 사고, 도감과 업적을 채우고, 🔗 동기화 코드로 어느 기기에서든 이어서 즐기세요.' },
+];
+let tutStep = 0;
+function renderTutorial() {
+  const s = TUTORIAL_SLIDES[tutStep];
+  document.getElementById('tutIcon').textContent = s.icon;
+  document.getElementById('tutTitle').textContent = s.title;
+  document.getElementById('tutText').textContent = s.text;
+  document.getElementById('tutorialDots').innerHTML =
+    TUTORIAL_SLIDES.map((_,i) => `<span class="tutDot${i===tutStep ? ' active' : ''}"></span>`).join('');
+  document.getElementById('tutPrev').style.visibility = tutStep === 0 ? 'hidden' : 'visible';
+  document.getElementById('tutNext').textContent = tutStep === TUTORIAL_SLIDES.length - 1 ? '시작하기!' : '다음';
+}
+function openTutorial() {
+  tutStep = 0;
+  renderTutorial();
+  document.getElementById('tutorialOverlay').style.display = 'flex';
+}
+function closeTutorial() {
+  document.getElementById('tutorialOverlay').style.display = 'none';
+  localStorage.setItem('fishingTutorialSeenV1', '1');
+}
+document.getElementById('tutSkip').addEventListener('click', closeTutorial);
+document.getElementById('tutPrev').addEventListener('click', () => { if (tutStep > 0) { tutStep--; renderTutorial(); } });
+document.getElementById('tutNext').addEventListener('click', () => {
+  if (tutStep < TUTORIAL_SLIDES.length - 1) { tutStep++; renderTutorial(); }
+  else closeTutorial();
+});
+document.getElementById('helpBtn').addEventListener('click', openTutorial);
+document.getElementById('soundBtn').addEventListener('click', toggleSound);
+document.getElementById('soundBtn').textContent = soundEnabled ? '🔊' : '🔇';
+if (!localStorage.getItem('fishingTutorialSeenV1')) openTutorial();
+
 document.getElementById('tabLakeCount').textContent = LAKE_FISH.length;
 document.getElementById('tabSeaCount').textContent = SEA_FISH.length;
 document.getElementById('tabPacificCount').textContent = PACIFIC_FISH.length;
@@ -2047,6 +2348,7 @@ document.getElementById('syncLoadBtn').addEventListener('click', () => {
 });
 
 updateTopStats();
+checkAchievements();
 ensureSyncCode();
 requestAnimationFrame(gameLoop);
 </script>
