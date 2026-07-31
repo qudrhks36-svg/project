@@ -31,6 +31,8 @@
   .btn:hover { background: #33475a; }
   .btn.active { background: linear-gradient(180deg,#5fd0ff,#2b9fe0); color: #00222e; border-color: #7fdcff; }
 
+  #topbarActions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+  #bgmVolume { width: 70px; accent-color: #5fd0ff; }
   #regionBar { width: 900px; display: flex; gap: 8px; flex-wrap: wrap; }
 
   #baitBadge {
@@ -342,11 +344,13 @@
   <div id="topbar">
     <button class="btn" id="dexBtn">📖 도감 (<span id="dexCountTop">0</span>/<span id="dexTotalCount">80</span>)</button>
     <div class="chip">🐟 <b id="totalCatches">0</b>마리 &nbsp;·&nbsp; ⭐ <b id="totalScore">0</b>점 &nbsp;·&nbsp; 💰 <b id="creditsNum">0</b>C</div>
-    <div>
+    <div id="topbarActions">
       <button class="btn" id="achBtn">🏆 업적</button>
       <button class="btn" id="shopBtn">🛒 상점</button>
       <button class="btn" id="syncBtn">🔗 동기화</button>
       <button class="btn" id="soundBtn">🔊</button>
+      <button class="btn" id="bgmBtn">🎵 BGM 켜기</button>
+      <input type="range" id="bgmVolume" min="0" max="1" step="0.05">
       <button class="btn" id="helpBtn">❓</button>
     </div>
   </div>
@@ -692,7 +696,7 @@ const RARITY = {
   uncommon:  { label:"UNCOMMON",  color:"#4fc3f7", stars:2, points:36,  hookWindow:0.58, zoneWidthRatio:0.23, needleSpeed:1.55, tensionRate:9.8,  gain:10.5 },
   rare:      { label:"RARE",      color:"#ba68c8", stars:3, points:95,  hookWindow:0.50, zoneWidthRatio:0.19, needleSpeed:1.75, tensionRate:10.3, gain:9.5 },
   legendary: { label:"LEGENDARY", color:"#ffd54f", stars:5, points:300, hookWindow:0.44, zoneWidthRatio:0.17, needleSpeed:1.85, tensionRate:10.0, gain:9.5 },
-  boss:      { label:"BOSS",      color:"#ff3d3d", stars:5, points:900, hookWindow:0.38, zoneWidthRatio:0.19, needleSpeed:1.7,  tensionRate:5.8,  gain:13 },
+  boss:      { label:"BOSS",      color:"#ff3d3d", stars:5, points:900, hookWindow:0.32, zoneWidthRatio:0.10, needleSpeed:2.25, tensionRate:10.5, gain:8.0 },
 };
 const RARITY_WEIGHT = { common:50, uncommon:28, rare:15, legendary:7 };
 const BOSS_CHANCE_BASE = 0.045;
@@ -872,8 +876,7 @@ function isBaitActive() { return economy.baitActiveUntil > Date.now(); }
 ========================================================= */
 let soundEnabled = localStorage.getItem('fishingSoundV1') !== 'off';
 let audioCtx = null;
-function ensureAudio() {
-  if (!soundEnabled) return null;
+function ensureAudioCtx() {
   if (!audioCtx) {
     try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return null; }
   }
@@ -881,7 +884,8 @@ function ensureAudio() {
   return audioCtx;
 }
 function beep(freq, duration, type, gainVal, delay) {
-  const ctx = ensureAudio();
+  if (!soundEnabled) return;
+  const ctx = ensureAudioCtx();
   if (!ctx) return;
   const t0 = ctx.currentTime + (delay || 0);
   const osc = ctx.createOscillator();
@@ -895,7 +899,8 @@ function beep(freq, duration, type, gainVal, delay) {
   osc.start(t0); osc.stop(t0 + duration + 0.02);
 }
 function sweepBeep(freqStart, freqEnd, duration, type, gainVal) {
-  const ctx = ensureAudio();
+  if (!soundEnabled) return;
+  const ctx = ensureAudioCtx();
   if (!ctx) return;
   const t0 = ctx.currentTime;
   const osc = ctx.createOscillator();
@@ -926,6 +931,107 @@ function toggleSound() {
   localStorage.setItem('fishingSoundV1', soundEnabled ? 'on' : 'off');
   document.getElementById('soundBtn').textContent = soundEnabled ? '🔊' : '🔇';
   if (soundEnabled) SFX.ui();
+}
+
+/* =========================================================
+   Ambient BGM — procedurally generated peaceful loop (no audio files)
+========================================================= */
+let bgmEnabled = localStorage.getItem('fishingBgmV1') === 'on';
+let bgmVolume = parseFloat(localStorage.getItem('fishingBgmVolV1') || '0.35');
+let bgmMasterGain = null;
+let bgmFilter = null;
+let bgmOscillators = [];
+let bgmChordIndex = 0;
+let bgmIntervalHandle = null;
+let bgmChimeTimeoutHandle = null;
+const BGM_CHORDS = [
+  [130.81, 164.81, 196.00], // C3 E3 G3
+  [174.61, 220.00, 261.63], // F3 A3 C4
+  [196.00, 246.94, 293.66], // G3 B3 D4
+  [146.83, 185.00, 220.00], // D3 F#3 A3
+];
+const BGM_CHIME_SCALE = [523.25, 587.33, 659.25, 783.99, 880.00, 1046.50];
+
+function startBgm() {
+  const ctx = ensureAudioCtx();
+  if (!ctx || bgmOscillators.length) return;
+  bgmMasterGain = ctx.createGain();
+  bgmMasterGain.gain.setValueAtTime(0, ctx.currentTime);
+  bgmMasterGain.gain.linearRampToValueAtTime(bgmVolume, ctx.currentTime + 2.5);
+  bgmMasterGain.connect(ctx.destination);
+
+  bgmFilter = ctx.createBiquadFilter();
+  bgmFilter.type = 'lowpass';
+  bgmFilter.frequency.value = 1000;
+  bgmFilter.connect(bgmMasterGain);
+
+  bgmChordIndex = 0;
+  bgmOscillators = BGM_CHORDS[0].map((f, i) => {
+    const osc = ctx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.value = f;
+    osc.detune.value = (i - 1) * 5;
+    const g = ctx.createGain();
+    g.gain.value = 0.2;
+    osc.connect(g); g.connect(bgmFilter);
+    osc.start();
+    return osc;
+  });
+
+  bgmIntervalHandle = setInterval(advanceBgmChord, 13000);
+  scheduleNextChime();
+}
+
+function advanceBgmChord() {
+  const ctx = ensureAudioCtx();
+  if (!ctx || !bgmOscillators.length) return;
+  bgmChordIndex = (bgmChordIndex + 1) % BGM_CHORDS.length;
+  const chord = BGM_CHORDS[bgmChordIndex];
+  bgmOscillators.forEach((osc, i) => osc.frequency.linearRampToValueAtTime(chord[i], ctx.currentTime + 4));
+}
+
+function scheduleNextChime() {
+  if (!bgmEnabled) return;
+  const delay = 3500 + Math.random() * 4500;
+  bgmChimeTimeoutHandle = setTimeout(() => { playChime(); scheduleNextChime(); }, delay);
+}
+function playChime() {
+  const ctx = ensureAudioCtx();
+  if (!ctx || !bgmMasterGain) return;
+  const f = BGM_CHIME_SCALE[Math.floor(Math.random() * BGM_CHIME_SCALE.length)];
+  const t0 = ctx.currentTime;
+  const osc = ctx.createOscillator();
+  osc.type = 'sine'; osc.frequency.value = f;
+  const g = ctx.createGain();
+  g.gain.setValueAtTime(0.0001, t0);
+  g.gain.linearRampToValueAtTime(0.1, t0 + 0.08);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + 2.4);
+  osc.connect(g); g.connect(bgmMasterGain);
+  osc.start(t0); osc.stop(t0 + 2.5);
+}
+
+function stopBgm() {
+  if (bgmIntervalHandle) { clearInterval(bgmIntervalHandle); bgmIntervalHandle = null; }
+  if (bgmChimeTimeoutHandle) { clearTimeout(bgmChimeTimeoutHandle); bgmChimeTimeoutHandle = null; }
+  const ctx = audioCtx;
+  const oscsToStop = bgmOscillators;
+  const gainToFade = bgmMasterGain;
+  if (ctx && gainToFade) {
+    gainToFade.gain.linearRampToValueAtTime(0, ctx.currentTime + 1.2);
+    setTimeout(() => oscsToStop.forEach(o => { try { o.stop(); } catch (e) {} }), 1300);
+  }
+  bgmOscillators = [];
+  bgmMasterGain = null;
+}
+
+function toggleBgm() {
+  bgmEnabled = !bgmEnabled;
+  localStorage.setItem('fishingBgmV1', bgmEnabled ? 'on' : 'off');
+  document.getElementById('bgmBtn').textContent = bgmEnabled ? '🎵 BGM 끄기' : '🎵 BGM 켜기';
+  if (bgmEnabled) startBgm(); else stopBgm();
+}
+function tryAutoStartBgm() {
+  if (bgmEnabled && !bgmOscillators.length) startBgm();
 }
 
 /* =========================================================
@@ -1207,7 +1313,7 @@ function update(dt) {
 
     if (reel.phase === 'mash') {
       reel.mashTimer -= dt;
-      reel.mashProgress = Math.max(0, reel.mashProgress - dt*13);
+      reel.mashProgress = Math.max(0, reel.mashProgress - dt*15);
       document.getElementById('finalStandWarning').style.display = 'none';
       document.getElementById('runWarning').style.display = 'none';
       if (reel.mashTimer <= 0) catchFail(isBoss ? 'escaped' : 'snapped');
@@ -1220,11 +1326,11 @@ function update(dt) {
         reel.runTimer -= dt;
         if (reel.runTimer <= 0) { reel.runActive = false; reel.nextRunAt = (isBoss?1.6:2.2) + Math.random()*2; }
       }
-      if (isBoss && !reel.finalStandDone && reel.progress >= 72) {
+      if (isBoss && !reel.finalStandDone && reel.progress >= 60) {
         reel.finalStand = true;
         if (!reel._finalStandStarted) {
           reel._finalStandStarted = true;
-          reel._finalStandTimer = 1.7;
+          reel._finalStandTimer = 2.2;
           setMsg("!! 마지막 발악이다 – 버텨라 !!");
         }
         reel._finalStandTimer -= dt;
@@ -1235,19 +1341,19 @@ function update(dt) {
       }
       document.getElementById('finalStandWarning').style.display = reel.finalStand ? 'block' : 'none';
 
-      const finalMul = reel.finalStand ? (isBoss?1.15:1.45) : 1;
-      const runMul = reel.runActive ? (isBoss?1.5:1.9) : 1;
+      const finalMul = reel.finalStand ? (isBoss?1.7:1.45) : 1;
+      const runMul = reel.runActive ? (isBoss?1.85:1.9) : 1;
       const speedMul = (1 + 0.7*(reel.progress/100)) * runMul * finalMul;
-      if (isBoss && Math.random() < dt*0.3) reel.needleDir *= -1;
+      if (isBoss && Math.random() < dt*0.55) reel.needleDir *= -1;
       reel.needleT += dt * conf.needleSpeed * speedMul * (isBoss ? reel.needleDir : 1);
-      reel.tension = Math.min(100, reel.tension + dt * conf.tensionRate * tier.tensionMul * eq.tensionMul * (reel.runActive?(isBoss?1.3:1.6):1) * (reel.finalStand?(isBoss?1.1:1.25):1));
+      reel.tension = Math.min(100, reel.tension + dt * conf.tensionRate * tier.tensionMul * eq.tensionMul * (reel.runActive?(isBoss?1.55:1.6):1) * (reel.finalStand?(isBoss?1.4:1.25):1));
       if (reel.flashT > 0) reel.flashT -= dt;
       if (reel.tension >= 100) {
         catchFail(isBoss ? 'escaped' : 'snapped');
       } else if (usesMashFinisher(currentFish.rarity) && reel.progress >= MASH_THRESHOLD) {
         reel.phase = 'mash';
         reel.mashProgress = 0;
-        reel.mashTimerMax = isBoss ? 4.2 : 3.4;
+        reel.mashTimerMax = isBoss ? 2.8 : 3.4;
         reel.mashTimer = reel.mashTimerMax;
         shake = Math.max(shake, 6);
         setMsg("!! 마무리다 – 연타하세요 !!");
@@ -1269,7 +1375,7 @@ function handleSpace() {
   if (state === 'idle') { startCast(0); }
   else if (state === 'bite') { beginReeling(); }
   else if (state === 'reeling' && reel.phase === 'mash') {
-    reel.mashProgress = Math.min(100, reel.mashProgress + 8 + Math.random()*4);
+    reel.mashProgress = Math.min(100, reel.mashProgress + 7 + Math.random()*3);
     shake = 6;
     SFX.tapHit();
     if (reel.mashProgress >= 100) catchSuccess();
@@ -1287,14 +1393,14 @@ function handleSpace() {
       const dNorm = 1 - Math.min(1, Math.abs(nx-center)/(reel.zoneWidth/2));
       reel.progress = Math.min(100, reel.progress + (conf.gain + dNorm*7) * tier.gainMul * eq.gainMul);
       if (usesMashFinisher(currentFish.rarity)) reel.progress = Math.min(99, reel.progress);
-      reel.tension = Math.max(0, reel.tension - (isBoss?15:12));
-      reel.zoneWidth = Math.min(0.5, Math.max(0.1, conf.zoneWidthRatio * tier.zoneMul * (1 - (isBoss?0.2:0.35)*(reel.progress/100))));
+      reel.tension = Math.max(0, reel.tension - (isBoss?8:12));
+      reel.zoneWidth = Math.min(0.5, Math.max(0.07, conf.zoneWidthRatio * tier.zoneMul * (1 - (isBoss?0.4:0.35)*(reel.progress/100))));
       reel.zoneStart = Math.random() * (1 - reel.zoneWidth);
       SFX.tapHit();
       if (reel.progress >= 100) catchSuccess();
     } else {
-      reel.progress = Math.max(0, reel.progress - (isBoss?7:9));
-      reel.tension = Math.min(100, reel.tension + (isBoss?10:13) * tier.tensionMul);
+      reel.progress = Math.max(0, reel.progress - (isBoss?12:9));
+      reel.tension = Math.min(100, reel.tension + (isBoss?16:13) * tier.tensionMul);
       shake = isBoss ? 7 : 4;
       SFX.tapMiss();
     }
@@ -2317,6 +2423,18 @@ document.getElementById('tutNext').addEventListener('click', () => {
 document.getElementById('helpBtn').addEventListener('click', openTutorial);
 document.getElementById('soundBtn').addEventListener('click', toggleSound);
 document.getElementById('soundBtn').textContent = soundEnabled ? '🔊' : '🔇';
+
+document.getElementById('bgmBtn').textContent = bgmEnabled ? '🎵 BGM 끄기' : '🎵 BGM 켜기';
+document.getElementById('bgmVolume').value = bgmVolume;
+document.getElementById('bgmBtn').addEventListener('click', toggleBgm);
+document.getElementById('bgmVolume').addEventListener('input', (e) => {
+  bgmVolume = parseFloat(e.target.value);
+  localStorage.setItem('fishingBgmVolV1', String(bgmVolume));
+  if (bgmMasterGain && audioCtx) bgmMasterGain.gain.linearRampToValueAtTime(bgmVolume, audioCtx.currentTime + 0.2);
+});
+window.addEventListener('pointerdown', tryAutoStartBgm, { once: true });
+window.addEventListener('keydown', tryAutoStartBgm, { once: true });
+
 if (!localStorage.getItem('fishingTutorialSeenV1')) openTutorial();
 
 document.getElementById('tabLakeCount').textContent = LAKE_FISH.length;
