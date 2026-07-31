@@ -33,6 +33,47 @@
 
   #regionBar { width: 900px; display: flex; gap: 8px; flex-wrap: wrap; }
 
+  #baitBadge {
+    display: none; align-items: center; gap: 4px; align-self: flex-start;
+    background: linear-gradient(135deg,#8fd6a0,#3e9e5c); color: #06210f; font-weight: 900; font-size: 12px;
+    padding: 4px 12px; border-radius: 20px; box-shadow: 0 0 10px rgba(90,220,140,0.5);
+  }
+
+  /* ---- Shop overlay ---- */
+  #shopOverlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.78);
+    display: none; align-items: center; justify-content: center; z-index: 21;
+  }
+  #shopPanel {
+    width: 880px; max-height: 84vh; background: linear-gradient(180deg,#16232f,#0e1720); border-radius: 14px;
+    padding: 18px 20px; color: #fff; display: flex; flex-direction: column; gap: 10px;
+    box-shadow: 0 10px 50px rgba(0,0,0,0.7); border: 1px solid rgba(255,255,255,0.08);
+  }
+  #shopPanel h2 { margin: 0; font-size: 20px; }
+  #shopTabs { display: flex; gap: 8px; align-items: center; }
+  #shopCredits { margin-left: auto; font-weight: bold; color: #ffd54f; font-size: 14px; }
+  #shopGrid {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;
+    overflow-y: auto; padding: 6px 2px; max-height: 56vh;
+  }
+  .shopCard {
+    background: linear-gradient(180deg,#1e2f3d,#152029); border-radius: 10px; padding: 14px 12px; text-align: center;
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+    border: 1px solid rgba(255,255,255,0.08);
+  }
+  .shopCard.equipped { border-color: #66bb6a; box-shadow: 0 0 12px -2px rgba(102,187,106,0.7); }
+  .shopCard .icon { font-size: 30px; }
+  .shopCard .name { font-weight: bold; font-size: 13px; }
+  .shopCard .effect { font-size: 11px; color: #7fe0ff; }
+  .shopCard .price { font-size: 12px; color: #ffd54f; }
+  .shopCard button {
+    margin-top: 4px; padding: 6px 14px; border: none; border-radius: 7px; font-weight: bold; cursor: pointer;
+    background: linear-gradient(180deg,#5fd0ff,#2b9fe0); color: #00222e;
+  }
+  .shopCard button:disabled { background: #3a4750; color: #7c8890; cursor: default; }
+  #shopStatus { min-height: 16px; font-size: 12px; color: #ff8a80; text-align: center; }
+  #shopClose { align-self: flex-end; }
+
   /* ---- Level bar (mobile RPG-style progression) ---- */
   #levelBar { width: 900px; display: flex; align-items: center; gap: 8px; color: #fff; font-size: 12px; }
   .lvChip {
@@ -242,9 +283,14 @@
 <div id="wrap">
   <div id="topbar">
     <button class="btn" id="dexBtn">📖 도감 (<span id="dexCountTop">0</span>/<span id="dexTotalCount">80</span>)</button>
-    <div class="chip">🐟 <b id="totalCatches">0</b>마리 &nbsp;·&nbsp; ⭐ <b id="totalScore">0</b>점</div>
-    <button class="btn" id="syncBtn">🔗 동기화</button>
+    <div class="chip">🐟 <b id="totalCatches">0</b>마리 &nbsp;·&nbsp; ⭐ <b id="totalScore">0</b>점 &nbsp;·&nbsp; 💰 <b id="creditsNum">0</b>C</div>
+    <div>
+      <button class="btn" id="shopBtn">🛒 상점</button>
+      <button class="btn" id="syncBtn">🔗 동기화</button>
+    </div>
   </div>
+
+  <div id="baitBadge">🎣 미끼 효과 2:00</div>
 
   <div id="regionBar">
     <button class="btn regionBtn active" data-region="lake">🏞️ 호수</button>
@@ -341,6 +387,21 @@
       <button class="btn" id="dexClose" style="margin-left:auto;">닫기</button>
     </div>
     <div id="dexGrid"></div>
+  </div>
+</div>
+
+<div id="shopOverlay">
+  <div id="shopPanel">
+    <h2>🛒 낚시 상점</h2>
+    <div id="shopTabs">
+      <button class="btn active" id="shopTabReel">🎣 릴</button>
+      <button class="btn" id="shopTabRod">🎋 낚싯대</button>
+      <button class="btn" id="shopTabBait">🪱 미끼</button>
+      <div id="shopCredits">💰 <span id="shopCreditsNum">0</span> 크레딧</div>
+    </div>
+    <div id="shopGrid"></div>
+    <div id="shopStatus"></div>
+    <button class="btn" id="shopClose" style="align-self:flex-end;">닫기</button>
   </div>
 </div>
 
@@ -622,6 +683,7 @@ async function pushSaveNow() {
   syncBusy = true;
   setSyncStatus('저장 중...');
   try {
+    dex.__economy = economy;
     const res = await sbFetch('fishing_saves?on_conflict=code', {
       method: 'POST',
       headers: { 'Prefer': 'resolution=merge-duplicates' },
@@ -652,6 +714,7 @@ async function loadSaveByCode(code) {
     const row = rows[0];
     dex = row.dex || {};
     totalScore = row.total_score || 0;
+    if (dex.__economy) { economy = Object.assign(defaultEconomy(), dex.__economy); saveEconomy(); }
     saveDex(); saveScore(); updateTopStats();
     syncCode = code;
     localStorage.setItem(SYNC_CODE_KEY, syncCode);
@@ -673,6 +736,41 @@ async function ensureSyncCode() {
   const el = document.getElementById('syncCodeText');
   if (el) el.textContent = syncCode;
 }
+
+/* =========================================================
+   Shop economy: credits + reel/rod/bait gear
+   (persisted inside dex.__economy so no DB schema change is needed)
+========================================================= */
+const REEL_TIERS = [
+  { id:'basic',  name:'초보 릴',   icon:'🎣', price:0,    tensionCut:0.00 },
+  { id:'mid',    name:'중수 릴',   icon:'🎣', price:300,  tensionCut:0.08 },
+  { id:'high',   name:'고수 릴',   icon:'🎣', price:900,  tensionCut:0.16 },
+  { id:'master', name:'마스터 릴', icon:'🎣', price:2200, tensionCut:0.24 },
+];
+const ROD_TIERS = [
+  { id:'basic',  name:'초보 낚싯대',   icon:'🎋', price:0,    gainBoost:0.00 },
+  { id:'mid',    name:'중수 낚싯대',   icon:'🎋', price:300,  gainBoost:0.08 },
+  { id:'high',   name:'고수 낚싯대',   icon:'🎋', price:900,  gainBoost:0.16 },
+  { id:'master', name:'마스터 낚싯대', icon:'🎋', price:2200, gainBoost:0.24 },
+];
+const BAIT_PRICE = 150;
+const BAIT_DURATION_MS = 2*60*1000;
+const BAIT_RARE_MUL = 1.30;
+
+function defaultEconomy() {
+  return { credits:0, reels:['basic'], rods:['basic'], equippedReel:'basic', equippedRod:'basic', baitCount:0, baitActiveUntil:0 };
+}
+let economy = Object.assign(defaultEconomy(), JSON.parse(localStorage.getItem('fishingEconomyV1') || '{}'));
+function saveEconomy() { localStorage.setItem('fishingEconomyV1', JSON.stringify(economy)); }
+function reelTierById(id) { return REEL_TIERS.find(r => r.id === id) || REEL_TIERS[0]; }
+function rodTierById(id) { return ROD_TIERS.find(r => r.id === id) || ROD_TIERS[0]; }
+function equipmentBuffs() {
+  return {
+    tensionMul: 1 - reelTierById(economy.equippedReel).tensionCut,
+    gainMul: 1 + rodTierById(economy.equippedRod).gainBoost,
+  };
+}
+function isBaitActive() { return economy.baitActiveUntil > Date.now(); }
 
 /* =========================================================
    Canvas & core state
@@ -739,9 +837,12 @@ function fishDef(f) { return { name:f[0], rarity:f[1], minLen:f[2], maxLen:f[3],
 
 function pickWeightedFish() {
   const p = pool();
-  const total = p.reduce((s,f) => s + RARITY_WEIGHT[f[1]], 0);
+  const w = isBaitActive()
+    ? { ...RARITY_WEIGHT, rare: RARITY_WEIGHT.rare*BAIT_RARE_MUL, legendary: RARITY_WEIGHT.legendary*BAIT_RARE_MUL }
+    : RARITY_WEIGHT;
+  const total = p.reduce((s,f) => s + w[f[1]], 0);
   let r = Math.random() * total;
-  for (const f of p) { r -= RARITY_WEIGHT[f[1]]; if (r <= 0) return f; }
+  for (const f of p) { r -= w[f[1]]; if (r <= 0) return f; }
   return p[0];
 }
 
@@ -770,7 +871,9 @@ function beginWaiting() {
 
 function triggerBite() {
   state = 'bite';
-  const bossChance = REGIONS[spot].ocean ? BOSS_CHANCE_BASE + (bobber._power/100)*0.03 : 0;
+  const bossChance = REGIONS[spot].ocean
+    ? (BOSS_CHANCE_BASE * (isBaitActive() ? BAIT_RARE_MUL : 1)) + (bobber._power/100)*0.03
+    : 0;
   const isBoss = Math.random() < bossChance;
   const f = isBoss ? BOSS_FISH[Math.floor(Math.random()*BOSS_FISH.length)] : pickWeightedFish();
   currentFish = fishDef(f);
@@ -806,6 +909,8 @@ function catchSuccess() {
   let points = Math.round(conf.points * (0.7 + 0.6*sizeRatio));
   if (isTrophy) points = Math.round(points * 1.5);
   totalScore += points; saveScore();
+  const creditsEarned = Math.max(1, Math.round(points / 4));
+  economy.credits += creditsEarned; saveEconomy();
 
   const isNew = !dex[currentFish.name];
   const entry = dex[currentFish.name] || { count:0, best:0, rarity:currentFish.rarity, habitat:spot };
@@ -816,7 +921,7 @@ function catchSuccess() {
   dex[currentFish.name] = entry;
   saveDex(); updateTopStats();
 
-  resultData = { ok:true, name:currentFish.name, rarity:currentFish.rarity, size, points, isNew, isTrophy, isBoss };
+  resultData = { ok:true, name:currentFish.name, rarity:currentFish.rarity, size, points, creditsEarned, isNew, isTrophy, isBoss };
   showCatchReveal(resultData);
   state = 'result'; resultTimer = isBoss ? 3.4 : 2.6;
   document.getElementById('stageWrap').classList.remove('bossMode');
@@ -842,7 +947,7 @@ function showCatchReveal(d) {
   document.getElementById('popStars').style.color = RARITY[d.rarity].color;
   document.getElementById('popName').textContent = (d.isBoss ? '🌊 ' : '') + d.name;
   document.getElementById('popSize').textContent = `${d.size}cm`;
-  document.getElementById('popPoints').textContent = `+${d.points}점`;
+  document.getElementById('popPoints').textContent = `+${d.points}점 · +${d.creditsEarned}크레딧`;
   reveal.style.display = 'flex';
   clearTimeout(reveal._hideTimer);
   reveal._hideTimer = setTimeout(() => { reveal.style.display = 'none'; }, d.isBoss ? 3600 : 2500);
@@ -875,9 +980,11 @@ function showLevelUp(lv) {
 }
 
 function updateTopStats() {
-  document.getElementById('dexCountTop').textContent = Object.keys(dex).length;
-  document.getElementById('totalCatches').textContent = Object.values(dex).reduce((s,e)=>s+e.count,0);
+  const dexEntries = Object.entries(dex).filter(([k]) => k !== '__economy');
+  document.getElementById('dexCountTop').textContent = dexEntries.length;
+  document.getElementById('totalCatches').textContent = dexEntries.reduce((s,[,e])=>s+e.count,0);
   document.getElementById('totalScore').textContent = totalScore;
+  document.getElementById('creditsNum').textContent = economy.credits;
   const lv = playerLevel();
   const prog = (totalScore % LV_THRESHOLD) / LV_THRESHOLD * 100;
   document.getElementById('lvNum').textContent = lv;
@@ -931,6 +1038,7 @@ function update(dt) {
     const isBoss = currentFish.rarity === 'boss';
     const conf = RARITY[currentFish.rarity];
     const tier = getTier(playerLevel());
+    const eq = equipmentBuffs();
 
     if (reel.phase === 'mash') {
       reel.mashTimer -= dt;
@@ -967,7 +1075,7 @@ function update(dt) {
       const speedMul = (1 + 0.7*(reel.progress/100)) * runMul * finalMul;
       if (isBoss && Math.random() < dt*0.3) reel.needleDir *= -1;
       reel.needleT += dt * conf.needleSpeed * speedMul * (isBoss ? reel.needleDir : 1);
-      reel.tension = Math.min(100, reel.tension + dt * conf.tensionRate * tier.tensionMul * (reel.runActive?(isBoss?1.3:1.6):1) * (reel.finalStand?(isBoss?1.1:1.25):1));
+      reel.tension = Math.min(100, reel.tension + dt * conf.tensionRate * tier.tensionMul * eq.tensionMul * (reel.runActive?(isBoss?1.3:1.6):1) * (reel.finalStand?(isBoss?1.1:1.25):1));
       if (reel.flashT > 0) reel.flashT -= dt;
       if (reel.tension >= 100) {
         catchFail(isBoss ? 'escaped' : 'snapped');
@@ -1007,10 +1115,11 @@ function handleSpace() {
     const isBoss = currentFish.rarity === 'boss';
     const conf = RARITY[currentFish.rarity];
     const tier = getTier(playerLevel());
+    const eq = equipmentBuffs();
     if (inZone) {
       const center = reel.zoneStart + reel.zoneWidth/2;
       const dNorm = 1 - Math.min(1, Math.abs(nx-center)/(reel.zoneWidth/2));
-      reel.progress = Math.min(100, reel.progress + (conf.gain + dNorm*7) * tier.gainMul);
+      reel.progress = Math.min(100, reel.progress + (conf.gain + dNorm*7) * tier.gainMul * eq.gainMul);
       if (usesMashFinisher(currentFish.rarity)) reel.progress = Math.min(99, reel.progress);
       reel.tension = Math.max(0, reel.tension - (isBoss?15:12));
       reel.zoneWidth = Math.min(0.5, Math.max(0.1, conf.zoneWidthRatio * tier.zoneMul * (1 - (isBoss?0.2:0.35)*(reel.progress/100))));
@@ -1785,6 +1894,129 @@ document.querySelectorAll('.regionBtn').forEach(btn => {
     setMsg("스페이스바 또는 버튼으로 캐스팅하세요");
   });
 });
+
+/* =========================================================
+   Shop UI
+========================================================= */
+function setShopStatus(t) { document.getElementById('shopStatus').textContent = t; }
+
+let shopTab = 'reel';
+function renderShop() {
+  const grid = document.getElementById('shopGrid');
+  grid.innerHTML = '';
+  document.getElementById('shopCreditsNum').textContent = economy.credits;
+
+  if (shopTab === 'bait') {
+    const active = isBaitActive();
+    const card = document.createElement('div');
+    card.className = 'shopCard';
+    const leftSec = active ? Math.ceil((economy.baitActiveUntil - Date.now())/1000) : 0;
+    card.innerHTML = `
+      <div class="icon">🪱</div>
+      <div class="name">미끼(떡밥)</div>
+      <div class="effect">사용 시 2분간 희귀(★3+) 등장률 +30%</div>
+      <div class="price">${BAIT_PRICE} 크레딧 / 개</div>
+      <div class="effect">보유: ${economy.baitCount}개 ${active ? `· 효과 중(${leftSec}s)` : ''}</div>
+    `;
+    const buyBtn = document.createElement('button');
+    buyBtn.textContent = '구매';
+    buyBtn.disabled = economy.credits < BAIT_PRICE;
+    buyBtn.addEventListener('click', () => {
+      if (economy.credits < BAIT_PRICE) { setShopStatus('크레딧이 부족해요.'); return; }
+      economy.credits -= BAIT_PRICE; economy.baitCount += 1;
+      saveEconomy(); updateTopStats(); renderShop(); queueSyncPush();
+      setShopStatus('미끼를 구매했어요.');
+    });
+    const useBtn = document.createElement('button');
+    useBtn.textContent = active ? '효과 사용중' : '사용';
+    useBtn.disabled = economy.baitCount <= 0 || active;
+    useBtn.addEventListener('click', () => {
+      if (economy.baitCount <= 0) return;
+      economy.baitCount -= 1;
+      economy.baitActiveUntil = Date.now() + BAIT_DURATION_MS;
+      saveEconomy(); updateTopStats(); renderShop(); queueSyncPush();
+      setShopStatus('미끼 효과가 시작됐어요!');
+    });
+    card.appendChild(buyBtn);
+    card.appendChild(useBtn);
+    grid.appendChild(card);
+    return;
+  }
+
+  const isReel = shopTab === 'reel';
+  const tiers = isReel ? REEL_TIERS : ROD_TIERS;
+  const owned = isReel ? economy.reels : economy.rods;
+  const equipped = isReel ? economy.equippedReel : economy.equippedRod;
+
+  for (const tier of tiers) {
+    const has = owned.includes(tier.id);
+    const isEquipped = equipped === tier.id;
+    const card = document.createElement('div');
+    card.className = 'shopCard' + (isEquipped ? ' equipped' : '');
+    const effectText = isReel
+      ? `물고기 저항 -${Math.round(tier.tensionCut*100)}%`
+      : `성공 게이지 획득 +${Math.round(tier.gainBoost*100)}%`;
+    card.innerHTML = `
+      <div class="icon">${tier.icon}</div>
+      <div class="name">${tier.name}</div>
+      <div class="effect">${effectText}</div>
+      <div class="price">${tier.price === 0 ? '기본 보유' : tier.price + ' 크레딧'}</div>
+    `;
+    const btn = document.createElement('button');
+    if (isEquipped) { btn.textContent = '장착중'; btn.disabled = true; }
+    else if (has) { btn.textContent = '장착하기'; btn.disabled = false; }
+    else { btn.textContent = '구매'; btn.disabled = economy.credits < tier.price; }
+    btn.addEventListener('click', () => {
+      if (has) {
+        if (isReel) economy.equippedReel = tier.id; else economy.equippedRod = tier.id;
+        saveEconomy(); renderShop(); queueSyncPush();
+        setShopStatus(`${tier.name}을(를) 장착했어요.`);
+      } else {
+        if (economy.credits < tier.price) { setShopStatus('크레딧이 부족해요.'); return; }
+        economy.credits -= tier.price;
+        if (isReel) { economy.reels.push(tier.id); economy.equippedReel = tier.id; }
+        else { economy.rods.push(tier.id); economy.equippedRod = tier.id; }
+        saveEconomy(); updateTopStats(); renderShop(); queueSyncPush();
+        setShopStatus(`${tier.name}을(를) 구매했어요.`);
+      }
+    });
+    card.appendChild(btn);
+    grid.appendChild(card);
+  }
+}
+
+function activateShopTab(tab) {
+  shopTab = tab;
+  document.getElementById('shopTabReel').classList.toggle('active', tab==='reel');
+  document.getElementById('shopTabRod').classList.toggle('active', tab==='rod');
+  document.getElementById('shopTabBait').classList.toggle('active', tab==='bait');
+  setShopStatus('');
+  renderShop();
+}
+document.getElementById('shopTabReel').addEventListener('click', () => activateShopTab('reel'));
+document.getElementById('shopTabRod').addEventListener('click', () => activateShopTab('rod'));
+document.getElementById('shopTabBait').addEventListener('click', () => activateShopTab('bait'));
+document.getElementById('shopBtn').addEventListener('click', () => {
+  document.getElementById('shopOverlay').style.display = 'flex';
+  activateShopTab(shopTab);
+});
+document.getElementById('shopClose').addEventListener('click', () => {
+  document.getElementById('shopOverlay').style.display = 'none';
+});
+
+function tickBaitBadge() {
+  const badge = document.getElementById('baitBadge');
+  const left = economy.baitActiveUntil - Date.now();
+  if (left > 0) {
+    const secs = Math.ceil(left/1000);
+    badge.style.display = 'inline-flex';
+    badge.textContent = `🎣 미끼 효과 ${Math.floor(secs/60)}:${String(secs%60).padStart(2,'0')}`;
+  } else {
+    badge.style.display = 'none';
+  }
+}
+setInterval(tickBaitBadge, 1000);
+tickBaitBadge();
 
 document.getElementById('tabLakeCount').textContent = LAKE_FISH.length;
 document.getElementById('tabSeaCount').textContent = SEA_FISH.length;
