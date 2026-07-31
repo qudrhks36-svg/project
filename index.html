@@ -31,6 +31,8 @@
   .btn:hover { background: #33475a; }
   .btn.active { background: linear-gradient(180deg,#5fd0ff,#2b9fe0); color: #00222e; border-color: #7fdcff; }
 
+  #regionBar { width: 900px; display: flex; gap: 8px; flex-wrap: wrap; }
+
   /* ---- Level bar (mobile RPG-style progression) ---- */
   #levelBar { width: 900px; display: flex; align-items: center; gap: 8px; color: #fff; font-size: 12px; }
   .lvChip {
@@ -86,7 +88,7 @@
     box-shadow: 0 10px 50px rgba(0,0,0,0.7); border: 1px solid rgba(255,255,255,0.08);
   }
   #dexPanel h2 { margin: 0; font-size: 20px; letter-spacing: 0.5px; }
-  #dexTabs { display: flex; gap: 8px; }
+  #dexTabs { display: flex; gap: 8px; flex-wrap: wrap; }
   #dexGrid {
     display: grid; grid-template-columns: repeat(8, 1fr); gap: 9px;
     overflow-y: auto; padding: 6px 2px; max-height: 60vh;
@@ -241,11 +243,14 @@
   <div id="topbar">
     <button class="btn" id="dexBtn">📖 도감 (<span id="dexCountTop">0</span>/<span id="dexTotalCount">80</span>)</button>
     <div class="chip">🐟 <b id="totalCatches">0</b>마리 &nbsp;·&nbsp; ⭐ <b id="totalScore">0</b>점</div>
-    <div>
-      <button class="btn active" id="locLake">🏞️ 호수</button>
-      <button class="btn" id="locSea">🌊 먼바다</button>
-      <button class="btn" id="syncBtn">🔗 동기화</button>
-    </div>
+    <button class="btn" id="syncBtn">🔗 동기화</button>
+  </div>
+
+  <div id="regionBar">
+    <button class="btn regionBtn active" data-region="lake">🏞️ 호수</button>
+    <button class="btn regionBtn" data-region="sea">🌊 먼바다</button>
+    <button class="btn regionBtn" data-region="pacific">🌐 태평양</button>
+    <button class="btn regionBtn" data-region="atlantic">🗺️ 대서양</button>
   </div>
 
   <div id="levelBar">
@@ -330,6 +335,8 @@
     <div id="dexTabs">
       <button class="btn active" id="tabLake">호수 (<span id="tabLakeCount">0</span>)</button>
       <button class="btn" id="tabSea">먼바다 (<span id="tabSeaCount">0</span>)</button>
+      <button class="btn" id="tabPacific">태평양 (<span id="tabPacificCount">0</span>)</button>
+      <button class="btn" id="tabAtlantic">대서양 (<span id="tabAtlanticCount">0</span>)</button>
       <button class="btn" id="tabSpecial">특수 (<span id="tabSpecialCount">0</span>)</button>
       <button class="btn" id="dexClose" style="margin-left:auto;">닫기</button>
     </div>
@@ -463,7 +470,44 @@ const SEA_FISH = [
   ["옥돔","legendary",25,45,"oval","rose"],
 ];
 
-/* ----- Special mega fish: unique catching mechanics, sea only, rare encounter ----- */
+/* ----- Open-ocean regions: large pelagic species reflecting real ecosystems ----- */
+const PACIFIC_FISH = [
+  ["황다랑어","common",60,120,"torpedo","bluesteel","lateral"],
+  ["몽치다래","common",40,70,"torpedo","bluesteel","backwave"],
+  ["물치다래","common",25,45,"torpedo","bluesteel"],
+  ["태평양날치","common",20,35,"slender","silver"],
+  ["갈고등어","common",25,42,"torpedo","bluesteel","backwave"],
+  ["점다랑어","uncommon",70,140,"torpedo","deepBlue","spots"],
+  ["태평양날개다랑어","uncommon",50,90,"torpedo","bluesteel","backwave"],
+  ["만새기","uncommon",60,100,"oval","sunsetOrange","lateral"],
+  ["샛돔","uncommon",30,50,"oval","silver"],
+  ["백새치","uncommon",120,220,"slender","silver","lateral"],
+  ["태평양청새치","rare",150,260,"slender","deepBlue","lateral"],
+  ["황새치","rare",180,300,"slender","charcoal","lateral"],
+  ["흑새치","rare",220,400,"slender","charcoal","lateral"],
+  ["대왕쥐가오리","legendary",250,500,"flat","charcoal"],
+  ["개복치","legendary",100,250,"oval","silver","spots"],
+];
+
+const ATLANTIC_FISH = [
+  ["대서양고등어","common",25,42,"torpedo","bluesteel","backwave"],
+  ["대서양청어","common",20,35,"torpedo","bluesteel"],
+  ["대서양날치","common",20,35,"slender","silver"],
+  ["대서양전갱이","common",25,45,"torpedo","silver","lateral"],
+  ["대서양정어리","common",15,25,"torpedo","bluesteel"],
+  ["대서양참다랑어","uncommon",100,200,"torpedo","deepBlue","lateral"],
+  ["대서양날개다랑어","uncommon",50,90,"torpedo","bluesteel","backwave"],
+  ["대서양은대구","uncommon",40,70,"slender","silver"],
+  ["대서양연어","uncommon",50,90,"torpedo","rose","lateral"],
+  ["대서양성대","uncommon",20,35,"spiny","sand"],
+  ["대서양청새치","rare",150,260,"slender","deepBlue","lateral"],
+  ["대서양백새치","rare",120,220,"slender","silver","lateral"],
+  ["대서양황새치","rare",180,300,"slender","charcoal","lateral"],
+  ["대서양쥐가오리","legendary",200,400,"flat","charcoal"],
+  ["대서양그린란드상어","legendary",300,500,"shark","charcoal"],
+];
+
+/* ----- Special mega fish: unique catching mechanics, ocean regions only, rare encounter ----- */
 const BOSS_FISH = [
   ["참다랑어","boss",150,300,"torpedo","deepBlue","lateral"],
   ["백상아리","boss",300,550,"shark","charcoal"],
@@ -499,6 +543,14 @@ const RARITY = {
 };
 const RARITY_WEIGHT = { common:50, uncommon:28, rare:15, legendary:7 };
 const BOSS_CHANCE_BASE = 0.045;
+
+/* ----- Region registry: drives location buttons, dex tabs, spawn pool & boss eligibility ----- */
+const REGIONS = {
+  lake:     { label:"호수",   icon:"🏞️", fishArr: LAKE_FISH,     ocean:false },
+  sea:      { label:"먼바다", icon:"🌊", fishArr: SEA_FISH,      ocean:true  },
+  pacific:  { label:"태평양", icon:"🌐", fishArr: PACIFIC_FISH,  ocean:true  },
+  atlantic: { label:"대서양", icon:"🗺️", fishArr: ATLANTIC_FISH, ocean:true  },
+};
 
 /* ----- Level titles (flavor text, changes at thresholds) ----- */
 const TITLES = [
@@ -641,8 +693,11 @@ let currentFish = null;
 let reel = {
   progress:0, tension:0, needleT:0, zoneStart:0.4, zoneWidth:0.3, flashT:0,
   runActive:false, runTimer:0, nextRunAt:0, needleDir:1,
-  finalStand:false, finalStandDone:false, _finalStandStarted:false, _finalStandTimer:0
+  finalStand:false, finalStandDone:false, _finalStandStarted:false, _finalStandTimer:0,
+  phase:'bar', mashProgress:0, mashTimer:0, mashTimerMax:0,
 };
+const MASH_THRESHOLD = 82;
+function usesMashFinisher(rarity) { return rarity === 'legendary' || rarity === 'boss'; }
 let resultData = null;
 let ripples = [];
 
@@ -661,20 +716,25 @@ function startCastWithPower() {
   document.getElementById('powerFill').style.width = '0%';
   startCast(power);
 }
-actionBtn.addEventListener('pointerdown', (e) => {
+function onPressStart(e) {
   e.preventDefault();
   if (state === 'idle') charging = true;
   else spaceJustPressed = true;
-});
-actionBtn.addEventListener('pointerup', (e) => {
+}
+function onPressEnd(e) {
   e.preventDefault();
   if (charging) { charging = false; startCastWithPower(); }
-});
-actionBtn.addEventListener('pointerleave', () => {
-  if (charging) { charging = false; startCastWithPower(); }
-});
+}
+actionBtn.addEventListener('pointerdown', onPressStart);
+actionBtn.addEventListener('pointerup', onPressEnd);
+actionBtn.addEventListener('pointerleave', onPressEnd);
+// clicking directly on the water also counts as a tap (used heavily in the mash finisher below)
+canvas.style.cursor = 'pointer';
+canvas.addEventListener('pointerdown', onPressStart);
+canvas.addEventListener('pointerup', onPressEnd);
+canvas.addEventListener('pointerleave', onPressEnd);
 
-function pool() { return spot === 'lake' ? LAKE_FISH : SEA_FISH; }
+function pool() { return REGIONS[spot].fishArr; }
 function fishDef(f) { return { name:f[0], rarity:f[1], minLen:f[2], maxLen:f[3], bodyType:f[4], colorKey:f[5], pattern:f[6]||null, whiskers:!!f[7] }; }
 
 function pickWeightedFish() {
@@ -710,7 +770,7 @@ function beginWaiting() {
 
 function triggerBite() {
   state = 'bite';
-  const bossChance = spot === 'sea' ? BOSS_CHANCE_BASE + (bobber._power/100)*0.03 : 0;
+  const bossChance = REGIONS[spot].ocean ? BOSS_CHANCE_BASE + (bobber._power/100)*0.03 : 0;
   const isBoss = Math.random() < bossChance;
   const f = isBoss ? BOSS_FISH[Math.floor(Math.random()*BOSS_FISH.length)] : pickWeightedFish();
   currentFish = fishDef(f);
@@ -731,6 +791,7 @@ function beginReeling() {
   reel.runActive = false; reel.runTimer = 0;
   reel.nextRunAt = isBoss ? 0.9 + Math.random()*0.6 : 1.4 + Math.random()*1.6;
   reel.finalStand = false; reel.finalStandDone = false; reel._finalStandStarted = false;
+  reel.phase = 'bar'; reel.mashProgress = 0; reel.mashTimer = 0;
   document.getElementById('bossBanner').style.display = 'none';
   document.getElementById('stageWrap').classList.toggle('bossMode', isBoss);
   setMsg(isBoss ? "필사적으로 버텨라!!" : "타이밍 맞춰 탭! 릴을 감으세요");
@@ -870,37 +931,55 @@ function update(dt) {
     const isBoss = currentFish.rarity === 'boss';
     const conf = RARITY[currentFish.rarity];
     const tier = getTier(playerLevel());
-    reel.nextRunAt -= dt;
-    if (!reel.runActive && reel.nextRunAt <= 0) {
-      reel.runActive = true; reel.runTimer = 0.8 + Math.random()*0.4;
-    }
-    if (reel.runActive) {
-      reel.runTimer -= dt;
-      if (reel.runTimer <= 0) { reel.runActive = false; reel.nextRunAt = (isBoss?1.6:2.2) + Math.random()*2; }
-    }
-    if (isBoss && !reel.finalStandDone && reel.progress >= 72) {
-      reel.finalStand = true;
-      if (!reel._finalStandStarted) {
-        reel._finalStandStarted = true;
-        reel._finalStandTimer = 1.7;
-        setMsg("!! 마지막 발악이다 – 버텨라 !!");
-      }
-      reel._finalStandTimer -= dt;
-      if (reel._finalStandTimer <= 0) {
-        reel.finalStandDone = true; reel.finalStand = false;
-        setMsg("필사적으로 버텨라!!");
-      }
-    }
-    document.getElementById('finalStandWarning').style.display = reel.finalStand ? 'block' : 'none';
 
-    const finalMul = reel.finalStand ? (isBoss?1.15:1.45) : 1;
-    const runMul = reel.runActive ? (isBoss?1.5:1.9) : 1;
-    const speedMul = (1 + 0.7*(reel.progress/100)) * runMul * finalMul;
-    if (isBoss && Math.random() < dt*0.3) reel.needleDir *= -1;
-    reel.needleT += dt * conf.needleSpeed * speedMul * (isBoss ? reel.needleDir : 1);
-    reel.tension = Math.min(100, reel.tension + dt * conf.tensionRate * tier.tensionMul * (reel.runActive?(isBoss?1.3:1.6):1) * (reel.finalStand?(isBoss?1.1:1.25):1));
-    if (reel.flashT > 0) reel.flashT -= dt;
-    if (reel.tension >= 100) catchFail(isBoss ? 'escaped' : 'snapped');
+    if (reel.phase === 'mash') {
+      reel.mashTimer -= dt;
+      reel.mashProgress = Math.max(0, reel.mashProgress - dt*13);
+      document.getElementById('finalStandWarning').style.display = 'none';
+      document.getElementById('runWarning').style.display = 'none';
+      if (reel.mashTimer <= 0) catchFail(isBoss ? 'escaped' : 'snapped');
+    } else {
+      reel.nextRunAt -= dt;
+      if (!reel.runActive && reel.nextRunAt <= 0) {
+        reel.runActive = true; reel.runTimer = 0.8 + Math.random()*0.4;
+      }
+      if (reel.runActive) {
+        reel.runTimer -= dt;
+        if (reel.runTimer <= 0) { reel.runActive = false; reel.nextRunAt = (isBoss?1.6:2.2) + Math.random()*2; }
+      }
+      if (isBoss && !reel.finalStandDone && reel.progress >= 72) {
+        reel.finalStand = true;
+        if (!reel._finalStandStarted) {
+          reel._finalStandStarted = true;
+          reel._finalStandTimer = 1.7;
+          setMsg("!! 마지막 발악이다 – 버텨라 !!");
+        }
+        reel._finalStandTimer -= dt;
+        if (reel._finalStandTimer <= 0) {
+          reel.finalStandDone = true; reel.finalStand = false;
+          setMsg("필사적으로 버텨라!!");
+        }
+      }
+      document.getElementById('finalStandWarning').style.display = reel.finalStand ? 'block' : 'none';
+
+      const finalMul = reel.finalStand ? (isBoss?1.15:1.45) : 1;
+      const runMul = reel.runActive ? (isBoss?1.5:1.9) : 1;
+      const speedMul = (1 + 0.7*(reel.progress/100)) * runMul * finalMul;
+      if (isBoss && Math.random() < dt*0.3) reel.needleDir *= -1;
+      reel.needleT += dt * conf.needleSpeed * speedMul * (isBoss ? reel.needleDir : 1);
+      reel.tension = Math.min(100, reel.tension + dt * conf.tensionRate * tier.tensionMul * (reel.runActive?(isBoss?1.3:1.6):1) * (reel.finalStand?(isBoss?1.1:1.25):1));
+      if (reel.flashT > 0) reel.flashT -= dt;
+      if (reel.tension >= 100) {
+        catchFail(isBoss ? 'escaped' : 'snapped');
+      } else if (usesMashFinisher(currentFish.rarity) && reel.progress >= MASH_THRESHOLD) {
+        reel.phase = 'mash';
+        reel.mashProgress = 0;
+        reel.mashTimerMax = isBoss ? 4.2 : 3.4;
+        reel.mashTimer = reel.mashTimerMax;
+        shake = Math.max(shake, 6);
+        setMsg("!! 마무리다 – 연타하세요 !!");
+      }
+    }
   } else if (state === 'result') {
     resultTimer -= dt;
     if (resultTimer <= 0) {
@@ -916,6 +995,11 @@ function needleX() { return 0.5 + 0.42*Math.sin(reel.needleT); }
 function handleSpace() {
   if (state === 'idle') { startCast(0); }
   else if (state === 'bite') { beginReeling(); }
+  else if (state === 'reeling' && reel.phase === 'mash') {
+    reel.mashProgress = Math.min(100, reel.mashProgress + 8 + Math.random()*4);
+    shake = 6;
+    if (reel.mashProgress >= 100) catchSuccess();
+  }
   else if (state === 'reeling') {
     const nx = needleX();
     const inZone = nx >= reel.zoneStart && nx <= reel.zoneStart + reel.zoneWidth;
@@ -927,6 +1011,7 @@ function handleSpace() {
       const center = reel.zoneStart + reel.zoneWidth/2;
       const dNorm = 1 - Math.min(1, Math.abs(nx-center)/(reel.zoneWidth/2));
       reel.progress = Math.min(100, reel.progress + (conf.gain + dNorm*7) * tier.gainMul);
+      if (usesMashFinisher(currentFish.rarity)) reel.progress = Math.min(99, reel.progress);
       reel.tension = Math.max(0, reel.tension - (isBoss?15:12));
       reel.zoneWidth = Math.min(0.5, Math.max(0.1, conf.zoneWidthRatio * tier.zoneMul * (1 - (isBoss?0.2:0.35)*(reel.progress/100))));
       reel.zoneStart = Math.random() * (1 - reel.zoneWidth);
@@ -996,18 +1081,39 @@ function fishSilhouette(x, y, s, dir) {
   ctx.restore();
 }
 
-function drawBackgroundSea(t) {
+const OCEAN_THEMES = {
+  sea: {
+    sky:[[0,'#4fb3e8'],[0.45,'#8fd6f2'],[0.78,'#dff3ee'],[1,'#fff3d6']],
+    sunX:W-130, sunY:55, sunGlow:'rgba(255,250,220,1)', sunCore:'#fffbe0',
+    water:[[0,'#2fb0c9'],[0.3,'#1c8fb4'],[0.65,'#12628f'],[1,'#062f52']],
+    fishScale:34, sparkleSeed:1, bigFish:false,
+  },
+  pacific: {
+    sky:[[0,'#1c6fd8'],[0.4,'#4f9be8'],[0.75,'#bfe0ea'],[1,'#eef7e0']],
+    sunX:W-130, sunY:50, sunGlow:'rgba(255,255,235,1)', sunCore:'#ffffe8',
+    water:[[0,'#1489b8'],[0.3,'#0d6a9c'],[0.65,'#084a78'],[1,'#02203f']],
+    fishScale:40, sparkleSeed:9, bigFish:true,
+  },
+  atlantic: {
+    sky:[[0,'#2c4f8a'],[0.4,'#5b7fb0'],[0.75,'#a9c3d4'],[1,'#e7ece0']],
+    sunX:W-130, sunY:60, sunGlow:'rgba(255,244,220,0.95)', sunCore:'#fff6df',
+    water:[[0,'#1f6f8f'],[0.3,'#155672'],[0.65,'#0b3a52'],[1,'#03192b']],
+    fishScale:38, sparkleSeed:17, bigFish:true,
+  },
+};
+
+function drawBackgroundOcean(t, theme) {
   const sky = ctx.createLinearGradient(0,0,0,HORIZON);
-  sky.addColorStop(0,'#4fb3e8'); sky.addColorStop(0.45,'#8fd6f2'); sky.addColorStop(0.78,'#dff3ee'); sky.addColorStop(1,'#fff3d6');
+  theme.sky.forEach(([pos,color]) => sky.addColorStop(pos,color));
   ctx.fillStyle = sky; ctx.fillRect(0,0,W,HORIZON);
 
   cloud(150, 70, 90, 0.85); cloud(430, 45, 70, 0.7); cloud(680, 90, 100, 0.8); cloud(820,55,60,0.6);
   bird(560, 65, 9); bird(600, 80, 7); bird(300,50,7);
 
-  const sunG = ctx.createRadialGradient(W-130, 55, 4, W-130, 55, 110);
-  sunG.addColorStop(0,'rgba(255,250,220,1)'); sunG.addColorStop(1,'rgba(255,250,220,0)');
-  ctx.fillStyle = sunG; ctx.beginPath(); ctx.arc(W-130,55,110,0,Math.PI*2); ctx.fill();
-  ctx.fillStyle = '#fffbe0'; ctx.beginPath(); ctx.arc(W-130,55,22,0,Math.PI*2); ctx.fill();
+  const sunG = ctx.createRadialGradient(theme.sunX, theme.sunY, 4, theme.sunX, theme.sunY, 110);
+  sunG.addColorStop(0, theme.sunGlow); sunG.addColorStop(1, 'rgba(255,250,220,0)');
+  ctx.fillStyle = sunG; ctx.beginPath(); ctx.arc(theme.sunX,theme.sunY,110,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle = theme.sunCore; ctx.beginPath(); ctx.arc(theme.sunX,theme.sunY,22,0,Math.PI*2); ctx.fill();
 
   // distant horizon haze band
   const haze = ctx.createLinearGradient(0,HORIZON-16,0,HORIZON+18);
@@ -1015,13 +1121,14 @@ function drawBackgroundSea(t) {
   ctx.fillStyle = haze; ctx.fillRect(0,HORIZON-16,W,34);
 
   const water = ctx.createLinearGradient(0,HORIZON,0,H);
-  water.addColorStop(0,'#2fb0c9'); water.addColorStop(0.3,'#1c8fb4'); water.addColorStop(0.65,'#12628f'); water.addColorStop(1,'#062f52');
+  theme.water.forEach(([pos,color]) => water.addColorStop(pos,color));
   ctx.fillStyle = water; ctx.fillRect(0,HORIZON,W,H-HORIZON);
 
-  fishSilhouette(230 + Math.sin(t*0.3)*40, HORIZON+120, 34, 1);
-  fishSilhouette(650 + Math.sin(t*0.22+2)*60, HORIZON+200, 26, -1);
+  fishSilhouette(230 + Math.sin(t*0.3)*40, HORIZON+120, theme.fishScale, 1);
+  fishSilhouette(650 + Math.sin(t*0.22+2)*60, HORIZON+200, theme.fishScale*0.76, -1);
+  if (theme.bigFish) fishSilhouette(460 + Math.sin(t*0.15+1)*90, HORIZON+300, theme.fishScale*1.7, 1);
 
-  sparkles(t, 26, 1);
+  sparkles(t, 26, theme.sparkleSeed);
 
   // sun glare streak
   ctx.save();
@@ -1034,6 +1141,10 @@ function drawBackgroundSea(t) {
   ctx.fill();
   ctx.restore();
 }
+
+function drawBackgroundSea(t) { drawBackgroundOcean(t, OCEAN_THEMES.sea); }
+function drawBackgroundPacific(t) { drawBackgroundOcean(t, OCEAN_THEMES.pacific); }
+function drawBackgroundAtlantic(t) { drawBackgroundOcean(t, OCEAN_THEMES.atlantic); }
 
 function drawBackgroundLake(t) {
   const sky = ctx.createLinearGradient(0,0,0,HORIZON);
@@ -1097,7 +1208,10 @@ function drawWaterTexture(t) {
 
 function drawBackground(now) {
   const t = now/1000;
-  if (spot === 'lake') drawBackgroundLake(t); else drawBackgroundSea(t);
+  if (spot === 'lake') drawBackgroundLake(t);
+  else if (spot === 'sea') drawBackgroundSea(t);
+  else if (spot === 'pacific') drawBackgroundPacific(t);
+  else if (spot === 'atlantic') drawBackgroundAtlantic(t);
   drawWaterTexture(t);
   // foreground dock plank strip
   ctx.fillStyle = '#33241a';
@@ -1502,8 +1616,31 @@ function drawRipples() {
   }
 }
 
+function drawMashUI() {
+  const cx = W/2, cy = H/2 - 20, r = 72;
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.strokeStyle = 'rgba(0,0,0,0.55)'; ctx.lineWidth = 16;
+  ctx.beginPath(); ctx.arc(0,0,r,0,Math.PI*2); ctx.stroke();
+  ctx.strokeStyle = reel.mashProgress > 70 ? '#ffd54f' : '#66bb6a'; ctx.lineWidth = 16; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.arc(0,0,r, -Math.PI/2, -Math.PI/2 + Math.PI*2*(reel.mashProgress/100)); ctx.stroke();
+  ctx.fillStyle = '#fff'; ctx.font = 'bold 30px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(Math.round(reel.mashProgress) + '%', 0, 4);
+  ctx.restore();
+
+  ctx.fillStyle = '#ffee00'; ctx.font = 'bold 22px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+  ctx.fillText('연타하세요!! (스페이스바 / 클릭)', cx, cy - 110);
+
+  const barW = 240, barX = cx - barW/2, barY = cy + 110;
+  ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(barX, barY, barW, 10);
+  const ratio = Math.max(0, reel.mashTimer / (reel.mashTimerMax || 1));
+  ctx.fillStyle = ratio < 0.3 ? '#ff1744' : '#7fe0ff';
+  ctx.fillRect(barX, barY, barW * ratio, 10);
+}
+
 function drawReelUI() {
   if (state !== 'reeling') return;
+  if (reel.phase === 'mash') { drawMashUI(); return; }
   const isBoss = currentFish.rarity === 'boss';
   const barX = W/2-170, barY = H-130, barW = 340, barH = 24;
 
@@ -1609,12 +1746,12 @@ function dexFishImage(def, locked) {
   return cnv.toDataURL();
 }
 
+const DEX_TAB_SRC = { lake:LAKE_FISH, sea:SEA_FISH, pacific:PACIFIC_FISH, atlantic:ATLANTIC_FISH, special:BOSS_FISH };
 let dexTab = 'lake';
 function renderDex() {
   const grid = document.getElementById('dexGrid');
   grid.innerHTML = '';
-  const src = dexTab === 'lake' ? LAKE_FISH : dexTab === 'sea' ? SEA_FISH : BOSS_FISH;
-  const list = src.map(fishDef);
+  const list = (DEX_TAB_SRC[dexTab] || LAKE_FISH).map(fishDef);
   for (const def of list) {
     const caught = dex[def.name];
     const card = document.createElement('div');
@@ -1632,31 +1769,30 @@ function renderDex() {
 
 document.getElementById('dexBtn').addEventListener('click', () => { document.getElementById('dexOverlay').style.display='flex'; renderDex(); });
 document.getElementById('dexClose').addEventListener('click', () => { document.getElementById('dexOverlay').style.display='none'; });
+const DEX_TAB_IDS = { lake:'tabLake', sea:'tabSea', pacific:'tabPacific', atlantic:'tabAtlantic', special:'tabSpecial' };
 function activateTab(tab) {
   dexTab = tab;
-  document.getElementById('tabLake').classList.toggle('active', tab==='lake');
-  document.getElementById('tabSea').classList.toggle('active', tab==='sea');
-  document.getElementById('tabSpecial').classList.toggle('active', tab==='special');
+  Object.entries(DEX_TAB_IDS).forEach(([key,id]) => document.getElementById(id).classList.toggle('active', key===tab));
   renderDex();
 }
-document.getElementById('tabLake').addEventListener('click', () => activateTab('lake'));
-document.getElementById('tabSea').addEventListener('click', () => activateTab('sea'));
-document.getElementById('tabSpecial').addEventListener('click', () => activateTab('special'));
-document.getElementById('locLake').addEventListener('click', () => {
-  spot='lake'; state='idle';
-  document.getElementById('locLake').classList.add('active'); document.getElementById('locSea').classList.remove('active');
-  setMsg("스페이스바 또는 버튼으로 캐스팅하세요");
-});
-document.getElementById('locSea').addEventListener('click', () => {
-  spot='sea'; state='idle';
-  document.getElementById('locSea').classList.add('active'); document.getElementById('locLake').classList.remove('active');
-  setMsg("스페이스바 또는 버튼으로 캐스팅하세요");
+Object.entries(DEX_TAB_IDS).forEach(([key,id]) => document.getElementById(id).addEventListener('click', () => activateTab(key)));
+document.querySelectorAll('.regionBtn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    spot = btn.dataset.region;
+    state = 'idle';
+    document.querySelectorAll('.regionBtn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    setMsg("스페이스바 또는 버튼으로 캐스팅하세요");
+  });
 });
 
 document.getElementById('tabLakeCount').textContent = LAKE_FISH.length;
 document.getElementById('tabSeaCount').textContent = SEA_FISH.length;
+document.getElementById('tabPacificCount').textContent = PACIFIC_FISH.length;
+document.getElementById('tabAtlanticCount').textContent = ATLANTIC_FISH.length;
 document.getElementById('tabSpecialCount').textContent = BOSS_FISH.length;
-document.getElementById('dexTotalCount').textContent = LAKE_FISH.length + SEA_FISH.length + BOSS_FISH.length;
+document.getElementById('dexTotalCount').textContent =
+  LAKE_FISH.length + SEA_FISH.length + PACIFIC_FISH.length + ATLANTIC_FISH.length + BOSS_FISH.length;
 
 document.getElementById('syncBtn').addEventListener('click', () => {
   document.getElementById('syncOverlay').style.display = 'flex';
