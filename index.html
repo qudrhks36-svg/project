@@ -155,6 +155,31 @@
     user-select: none; touch-action: none;
   }
   #actionBtn:active { transform: scale(0.94); }
+
+  /* ---- Cloud sync (code-based, no login) ---- */
+  #syncOverlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.78);
+    display: none; align-items: center; justify-content: center; z-index: 25;
+  }
+  #syncPanel {
+    width: 420px; background: linear-gradient(180deg,#16232f,#0e1720); border-radius: 14px;
+    padding: 20px 22px; color: #fff; display: flex; flex-direction: column; gap: 12px;
+    box-shadow: 0 10px 50px rgba(0,0,0,0.7); border: 1px solid rgba(255,255,255,0.08);
+  }
+  #syncPanel h2 { margin: 0; font-size: 18px; }
+  #syncPanel p { margin: 0; font-size: 12px; color: #9db0c0; line-height: 1.5; }
+  #syncCodeBox {
+    display: flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.06);
+    border-radius: 8px; padding: 10px 12px; font-size: 18px; font-weight: 900; letter-spacing: 2px;
+    justify-content: space-between;
+  }
+  #syncInputRow { display: flex; gap: 8px; }
+  #syncInputRow input {
+    flex: 1; padding: 8px 10px; border-radius: 7px; border: 1px solid rgba(255,255,255,0.15);
+    background: rgba(255,255,255,0.06); color: #fff; font-size: 14px; letter-spacing: 1px;
+  }
+  #syncStatus { font-size: 12px; color: #7fe0ff; min-height: 16px; }
+  #syncClose { align-self: flex-end; }
 </style>
 </head>
 <body>
@@ -165,6 +190,7 @@
     <div>
       <button class="btn active" id="locLake">🏞️ 호수</button>
       <button class="btn" id="locSea">🌊 먼바다</button>
+      <button class="btn" id="syncBtn">🔗 동기화</button>
     </div>
   </div>
 
@@ -240,6 +266,23 @@
       <button class="btn" id="dexClose" style="margin-left:auto;">닫기</button>
     </div>
     <div id="dexGrid"></div>
+  </div>
+</div>
+
+<div id="syncOverlay">
+  <div id="syncPanel">
+    <h2>🔗 기록 동기화</h2>
+    <p>이 코드를 입력하면 어느 기기·브라우저에서든 같은 도감·점수를 이어서 볼 수 있어요. 코드를 잃어버리면 기록도 잃어버리니 꼭 저장해두세요.</p>
+    <div id="syncCodeBox">
+      <span id="syncCodeText">----------</span>
+      <button class="btn" id="syncCopyBtn">복사</button>
+    </div>
+    <div id="syncInputRow">
+      <input id="syncInput" type="text" placeholder="다른 기기의 코드를 입력하세요">
+      <button class="btn" id="syncLoadBtn">불러오기</button>
+    </div>
+    <div id="syncStatus"></div>
+    <button class="btn" id="syncClose">닫기</button>
   </div>
 </div>
 
@@ -397,6 +440,96 @@ let dex = JSON.parse(localStorage.getItem(DEX_KEY) || '{}');
 function saveDex() { localStorage.setItem(DEX_KEY, JSON.stringify(dex)); }
 let totalScore = parseInt(localStorage.getItem('fishingScoreV3') || '0', 10);
 function saveScore() { localStorage.setItem('fishingScoreV3', String(totalScore)); }
+
+/* =========================================================
+   Cloud sync (Supabase, code-based, no login)
+========================================================= */
+const SUPABASE_URL = 'https://nymbvausljlikofaoxdz.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_KTvBIl5GurqLYFe3HNEp2g_urPHXus4';
+const SYNC_CODE_KEY = 'fishingSyncCodeV1';
+
+function genSyncCode() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let out = '';
+  for (let i = 0; i < 10; i++) out += chars[Math.floor(Math.random() * chars.length)];
+  return out.slice(0,5) + '-' + out.slice(5);
+}
+
+let syncCode = localStorage.getItem(SYNC_CODE_KEY);
+let syncPushTimer = null;
+let syncBusy = false;
+
+function setSyncStatus(t) { const el = document.getElementById('syncStatus'); if (el) el.textContent = t; }
+
+async function sbFetch(path, options) {
+  const res = await fetch(SUPABASE_URL + '/rest/v1/' + path, {
+    ...options,
+    headers: {
+      'apikey': SUPABASE_KEY,
+      'Authorization': 'Bearer ' + SUPABASE_KEY,
+      'Content-Type': 'application/json',
+      ...(options && options.headers ? options.headers : {}),
+    },
+  });
+  return res;
+}
+
+async function pushSaveNow() {
+  if (!syncCode) return;
+  syncBusy = true;
+  setSyncStatus('저장 중...');
+  try {
+    const res = await sbFetch('fishing_saves?on_conflict=code', {
+      method: 'POST',
+      headers: { 'Prefer': 'resolution=merge-duplicates' },
+      body: JSON.stringify([{ code: syncCode, dex, total_score: totalScore, updated_at: new Date().toISOString() }]),
+    });
+    setSyncStatus(res.ok ? '저장됨 · ' + new Date().toLocaleTimeString() : '저장 실패 (' + res.status + ')');
+  } catch (e) {
+    setSyncStatus('저장 실패 (네트워크)');
+  }
+  syncBusy = false;
+}
+
+function queueSyncPush() {
+  if (!syncCode) return;
+  clearTimeout(syncPushTimer);
+  syncPushTimer = setTimeout(pushSaveNow, 1200);
+}
+
+async function loadSaveByCode(code) {
+  setSyncStatus('불러오는 중...');
+  try {
+    const res = await sbFetch('fishing_saves?code=eq.' + encodeURIComponent(code) + '&select=*');
+    const rows = await res.json();
+    if (!res.ok || !Array.isArray(rows) || rows.length === 0) {
+      setSyncStatus('해당 코드의 기록을 찾을 수 없어요.');
+      return false;
+    }
+    const row = rows[0];
+    dex = row.dex || {};
+    totalScore = row.total_score || 0;
+    saveDex(); saveScore(); updateTopStats();
+    syncCode = code;
+    localStorage.setItem(SYNC_CODE_KEY, syncCode);
+    document.getElementById('syncCodeText').textContent = syncCode;
+    setSyncStatus('불러왔어요! 이 기기에 반영됨.');
+    return true;
+  } catch (e) {
+    setSyncStatus('불러오기 실패 (네트워크)');
+    return false;
+  }
+}
+
+async function ensureSyncCode() {
+  if (!syncCode) {
+    syncCode = genSyncCode();
+    localStorage.setItem(SYNC_CODE_KEY, syncCode);
+    await pushSaveNow();
+  }
+  const el = document.getElementById('syncCodeText');
+  if (el) el.textContent = syncCode;
+}
 
 /* =========================================================
    Canvas & core state
@@ -574,6 +707,7 @@ function updateTopStats() {
   const prog = (totalScore % lvThreshold) / lvThreshold * 100;
   document.getElementById('lvNum').textContent = lv;
   document.getElementById('expFill').style.width = prog + '%';
+  queueSyncPush();
 }
 
 /* =========================================================
@@ -1299,7 +1433,28 @@ document.getElementById('tabSeaCount').textContent = SEA_FISH.length;
 document.getElementById('tabSpecialCount').textContent = BOSS_FISH.length;
 document.getElementById('dexTotalCount').textContent = LAKE_FISH.length + SEA_FISH.length + BOSS_FISH.length;
 
+document.getElementById('syncBtn').addEventListener('click', () => {
+  document.getElementById('syncOverlay').style.display = 'flex';
+  document.getElementById('syncCodeText').textContent = syncCode || '----------';
+  setSyncStatus('');
+});
+document.getElementById('syncClose').addEventListener('click', () => {
+  document.getElementById('syncOverlay').style.display = 'none';
+});
+document.getElementById('syncCopyBtn').addEventListener('click', async () => {
+  if (!syncCode) return;
+  try { await navigator.clipboard.writeText(syncCode); setSyncStatus('복사됨!'); }
+  catch (e) { setSyncStatus(syncCode); }
+});
+document.getElementById('syncLoadBtn').addEventListener('click', () => {
+  const input = document.getElementById('syncInput');
+  const code = input.value.trim().toUpperCase();
+  if (!code) { setSyncStatus('코드를 입력하세요.'); return; }
+  loadSaveByCode(code);
+});
+
 updateTopStats();
+ensureSyncCode();
 requestAnimationFrame(gameLoop);
 </script>
 </body>
