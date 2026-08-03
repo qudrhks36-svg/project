@@ -556,9 +556,11 @@
   <div id="shopPanel">
     <h2>🛒 낚시 상점</h2>
     <div id="shopTabs">
-      <button class="btn active" id="shopTabReel">🎣 릴</button>
+      <button class="btn active" id="shopTabSell">🐟 판매</button>
+      <button class="btn" id="shopTabReel">🎣 릴</button>
       <button class="btn" id="shopTabRod">🎋 낚싯대</button>
       <button class="btn" id="shopTabBait">🪱 미끼</button>
+      <button class="btn" id="shopTabBooster">✨ 부스터</button>
       <div id="shopCredits">💰 <span id="shopCreditsNum">0</span> 크레딧</div>
     </div>
     <div id="shopGrid"></div>
@@ -1107,26 +1109,36 @@ const ROD_TIERS = [
   { id:'high',   name:'고수 낚싯대',   icon:'🎋', price:900,  gainBoost:0.16 },
   { id:'master', name:'마스터 낚싯대', icon:'🎋', price:2200, gainBoost:0.24 },
 ];
+/* ----- Bait: count-based consumable, 1 unit spent per cast while equipped (no timer) ----- */
 const BAIT_TYPES = {
-  basic:  { name:'미끼(떡밥)', icon:'🪱', price:150, duration:2*60*1000, desc:'2분간 희귀(★3+) 어종 등장률 +30%' },
-  boss:   { name:'특급 미끼',  icon:'🦑', price:400, duration:90*1000,   desc:'90초간 초대형(보스) 어종 등장 확률 +60%' },
-  trophy: { name:'대물 미끼',  icon:'📏', price:250, duration:2*60*1000, desc:'2분간 대물(대형 개체) 판정 확률 대폭 상승' },
+  basic:  { name:'미끼(떡밥)', icon:'🪱', unitPrice:20,  bundlePrice:160, bundleSize:10, desc:'장착 중 캐스팅마다 1개 소모 · 희귀(★3+) 등장률 +30%' },
+  boss:   { name:'특급 미끼',  icon:'🦑', unitPrice:60,  bundlePrice:480, bundleSize:10, desc:'장착 중 캐스팅마다 1개 소모 · 초대형(보스) 등장 확률 +60%' },
+  trophy: { name:'대물 미끼',  icon:'📏', unitPrice:35,  bundlePrice:280, bundleSize:10, desc:'장착 중 캐스팅마다 1개 소모 · 대물 판정 확률 대폭 상승' },
+};
+
+/* ----- Booster: consumed on the next successful catch, boosts that catch's score ----- */
+const BOOSTER_TYPES = {
+  exp: { name:'경험치 부스터', icon:'✨', unitPrice:45, bundlePrice:360, bundleSize:10, desc:'보유 중 다음 포획 1회의 획득 점수 +50%' },
 };
 
 function defaultEconomy() {
   return {
     credits:0, reels:['basic'], rods:['basic'], equippedReel:'basic', equippedRod:'basic',
-    baits:{ basic:0, boss:0, trophy:0 }, activeBaitType:null, baitActiveUntil:0,
-    trophyCatches:0, unlockedAchievements:[],
+    baits:{ basic:0, boss:0, trophy:0 }, equippedBait:null,
+    boosters:{ exp:0 },
+    stock:{}, trophyCatches:0, unlockedAchievements:[],
     dailyDate:null, dailyQuestIds:[], dailyProgress:{}, dailyClaimed:[], loginStreak:0,
     dexRewardsClaimed:[], nickname:'',
   };
 }
 let economy = Object.assign(defaultEconomy(), JSON.parse(localStorage.getItem('fishingEconomyV1') || '{}'));
-// migrate pre-existing single-bait saves into the new multi-bait structure
+// migrate pre-existing single-bait / timed-bait saves into the count-based structure
 if (!economy.baits) economy.baits = { basic:0, boss:0, trophy:0 };
 if (economy.baitCount) { economy.baits.basic = (economy.baits.basic||0) + economy.baitCount; economy.baitCount = 0; }
-if (economy.baitActiveUntil > Date.now() && !economy.activeBaitType) economy.activeBaitType = 'basic';
+if (economy.equippedBait === undefined) economy.equippedBait = economy.activeBaitType || null;
+delete economy.activeBaitType; delete economy.baitActiveUntil;
+if (!economy.boosters) economy.boosters = { exp:0 };
+if (!economy.stock) economy.stock = {};
 if (!economy.dexRewardsClaimed) economy.dexRewardsClaimed = [];
 if (economy.nickname == null) economy.nickname = '';
 function saveEconomy() { localStorage.setItem('fishingEconomyV1', JSON.stringify(economy)); }
@@ -1138,9 +1150,13 @@ function equipmentBuffs() {
     gainMul: 1 + rodTierById(economy.equippedRod).gainBoost,
   };
 }
-function activeBait() {
-  if (economy.activeBaitType && economy.baitActiveUntil <= Date.now()) { economy.activeBaitType = null; saveEconomy(); }
-  return economy.activeBaitType;
+/* ----- Fish sell pricing: rarity tier baseline scaled by how large the catch was ----- */
+function fishSellPrice(name) {
+  const entry = dex[name];
+  if (!entry) return 0;
+  const def = FISH_BY_NAME[name];
+  const ratio = def ? Math.min(1.5, Math.max(0.6, entry.best / def.maxLen)) : 1;
+  return Math.max(1, Math.round(RARITY[entry.rarity].points * 0.45 * ratio));
 }
 
 /* =========================================================
@@ -1215,6 +1231,8 @@ const W = canvas.width, H = canvas.height;
 const HORIZON = H * 0.4;
 
 let spot = 'lake';
+let castBaitType = null;
+let castBoosterActive = false;
 let lastTime = performance.now();
 const rod = { tipX: W - 60, tipY: H - 210 };
 let bobber = { x: W/2, y: HORIZON + 60, targetX: W/2, targetY: HORIZON + 60, _power: 0 };
@@ -1269,11 +1287,17 @@ canvas.addEventListener('pointerleave', onPressEnd);
 function pool() { return REGIONS[spot].fishArr; }
 function fishDef(f) { return { name:f[0], rarity:f[1], minLen:f[2], maxLen:f[3], bodyType:f[4], colorKey:f[5], pattern:f[6]||null, whiskers:!!f[7] }; }
 
+/* ----- Global name -> def lookup, used for sell pricing (size ratio vs species max) ----- */
+const FISH_BY_NAME = {};
+for (const arr of [LAKE_FISH, SEA_FISH, JEJU_FISH, EASTSEA_FISH, PACIFIC_FISH, ATLANTIC_FISH, BOSS_FISH]) {
+  for (const f of arr) FISH_BY_NAME[f[0]] = fishDef(f);
+}
+
 function pickWeightedFish() {
   const p = pool();
   const mods = envSpawnMods();
   const w = { ...RARITY_WEIGHT };
-  if (activeBait() === 'basic') { w.rare *= 1.3; w.legendary *= 1.3; }
+  if (castBaitType === 'basic') { w.rare *= 1.3; w.legendary *= 1.3; }
   w.rare *= mods.rareWeightMul;
   w.legendary *= mods.legendaryWeightMul;
   const total = p.reduce((s,f) => s + w[f[1]], 0);
@@ -1291,6 +1315,16 @@ function starsStr(n) { return '★'.repeat(n) + '☆'.repeat(5-n); }
 function startCast(power) {
   power = power || 0;
   state = 'casting';
+  castBaitType = null;
+  const bt = economy.equippedBait;
+  if (bt && (economy.baits[bt]||0) > 0) {
+    economy.baits[bt] -= 1;
+    castBaitType = bt;
+    if (economy.baits[bt] <= 0) economy.equippedBait = null;
+    saveEconomy(); updateTopStats(); queueSyncPush();
+    updateBaitBadge();
+    bumpDailyProgress('baitUsedCount', 1);
+  }
   const reach = 0.46 + (power/100)*0.12;
   bobber.targetX = W * 0.28 + Math.random() * W * reach;
   bobber.targetY = HORIZON + 30 + Math.random() * (H - HORIZON - 90);
@@ -1311,7 +1345,7 @@ function triggerBite() {
   state = 'bite';
   const mods = envSpawnMods();
   const bossChance = REGIONS[spot].ocean
-    ? (BOSS_CHANCE_BASE * (activeBait() === 'boss' ? 1.6 : 1) * mods.bossChanceMul) + (bobber._power/100)*0.03
+    ? (BOSS_CHANCE_BASE * (castBaitType === 'boss' ? 1.6 : 1) * mods.bossChanceMul) + (bobber._power/100)*0.03
     : 0;
   const isBoss = Math.random() < bossChance;
   const f = isBoss ? BOSS_FISH[Math.floor(Math.random()*BOSS_FISH.length)] : pickWeightedFish();
@@ -1345,16 +1379,15 @@ function catchSuccess() {
   const conf = RARITY[currentFish.rarity];
   const size = (currentFish.minLen + Math.random()*(currentFish.maxLen-currentFish.minLen)).toFixed(1);
   const sizeRatio = (size-currentFish.minLen)/(currentFish.maxLen-currentFish.minLen+0.001);
-  const trophyThreshold = activeBait() === 'trophy' ? 0.65 : 0.85;
+  const trophyThreshold = castBaitType === 'trophy' ? 0.65 : 0.85;
   const isTrophy = !isBoss && sizeRatio >= trophyThreshold;
   let points = Math.round(conf.points * (0.7 + 0.6*sizeRatio));
   if (isTrophy) points = Math.round(points * 1.5);
   if (envState.weather === 'fog') points = Math.round(points * 1.15);
+  const isBoosted = (economy.boosters.exp || 0) > 0;
+  if (isBoosted) { points = Math.round(points * 1.5); economy.boosters.exp -= 1; }
   totalScore += points; saveScore();
-  const creditsEarned = Math.max(1, Math.round(points / 4));
-  economy.credits += creditsEarned;
   if (isTrophy) economy.trophyCatches = (economy.trophyCatches || 0) + 1;
-  saveEconomy();
 
   const isNew = !dex[currentFish.name];
   const entry = dex[currentFish.name] || { count:0, best:0, rarity:currentFish.rarity, habitat:spot };
@@ -1365,7 +1398,11 @@ function catchSuccess() {
   dex[currentFish.name] = entry;
   saveDex(); updateTopStats();
 
-  resultData = { ok:true, name:currentFish.name, rarity:currentFish.rarity, size, points, creditsEarned, isNew, isTrophy, isBoss };
+  economy.stock[currentFish.name] = (economy.stock[currentFish.name] || 0) + 1;
+  saveEconomy(); queueSyncPush();
+  const sellValue = fishSellPrice(currentFish.name);
+
+  resultData = { ok:true, name:currentFish.name, rarity:currentFish.rarity, size, points, sellValue, isNew, isTrophy, isBoss, isBoosted };
   showCatchReveal(resultData);
   SFX.catchSuccess(isBoss);
   state = 'result'; resultTimer = isBoss ? 3.4 : 2.6;
@@ -1373,7 +1410,6 @@ function catchSuccess() {
   bumpDailyProgress('catchCount', 1);
   if (RARITY[currentFish.rarity].stars >= 3) bumpDailyProgress('rareCount', 1);
   if (isNew) bumpDailyProgress('newDexCount', 1);
-  bumpDailyProgress('creditsEarnedToday', creditsEarned);
   if (spot === 'pacific' || spot === 'atlantic') bumpDailyProgress('oceanCount', 1);
   checkAchievements();
   checkDexCompletion();
@@ -1400,7 +1436,7 @@ function showCatchReveal(d) {
   document.getElementById('popStars').style.color = RARITY[d.rarity].color;
   document.getElementById('popName').textContent = (d.isBoss ? '🌊 ' : '') + d.name;
   document.getElementById('popSize').textContent = `${d.size}cm`;
-  document.getElementById('popPoints').textContent = `+${d.points}점 · +${d.creditsEarned}크레딧`;
+  document.getElementById('popPoints').textContent = `+${d.points}점${d.isBoosted ? ' (부스터!)' : ''} · 판매가 ${d.sellValue}C (재고 추가)`;
   reveal.style.display = 'flex';
   clearTimeout(reveal._hideTimer);
   reveal._hideTimer = setTimeout(() => { reveal.style.display = 'none'; }, d.isBoss ? 3600 : 2500);
@@ -2544,50 +2580,125 @@ function checkDexCompletion() {
 ========================================================= */
 function setShopStatus(t) { document.getElementById('shopStatus').textContent = t; }
 
-let shopTab = 'reel';
+let shopTab = 'sell';
 function renderShop() {
   const grid = document.getElementById('shopGrid');
   grid.innerHTML = '';
   document.getElementById('shopCreditsNum').textContent = economy.credits;
 
-  if (shopTab === 'bait') {
-    const activeType = activeBait();
-    for (const [key, bait] of Object.entries(BAIT_TYPES)) {
-      const owned = economy.baits[key] || 0;
-      const isActive = activeType === key;
+  if (shopTab === 'sell') {
+    const names = Object.keys(economy.stock).filter(n => economy.stock[n] > 0);
+    if (names.length === 0) {
+      grid.innerHTML = `<div class="effect" style="grid-column:1/-1; text-align:center; padding:20px;">판매할 재고가 없어요. 물고기를 잡으면 여기 쌓여요!</div>`;
+      return;
+    }
+    names.sort((a,b) => (RARITY[dex[b].rarity].points) - (RARITY[dex[a].rarity].points));
+    const sellAllCard = document.createElement('div');
+    sellAllCard.className = 'shopCard';
+    sellAllCard.style.gridColumn = '1/-1';
+    const totalValue = names.reduce((s,n) => s + fishSellPrice(n)*economy.stock[n], 0);
+    const totalCount = names.reduce((s,n) => s + economy.stock[n], 0);
+    sellAllCard.innerHTML = `<div class="name">전체 재고 ${totalCount}마리 · 합계 ${totalValue}C</div>`;
+    const sellAllBtn = document.createElement('button');
+    sellAllBtn.textContent = '전량 판매';
+    sellAllBtn.addEventListener('click', () => {
+      economy.credits += totalValue;
+      economy.stock = {};
+      saveEconomy(); updateTopStats(); renderShop(); queueSyncPush();
+      bumpDailyProgress('creditsEarnedToday', totalValue);
+      setShopStatus(`재고를 모두 판매해 ${totalValue}크레딧을 받았어요.`);
+    });
+    sellAllCard.appendChild(sellAllBtn);
+    grid.appendChild(sellAllCard);
+
+    for (const name of names) {
+      const count = economy.stock[name];
+      const entry = dex[name];
+      const unitPrice = fishSellPrice(name);
       const card = document.createElement('div');
-      card.className = 'shopCard' + (isActive ? ' equipped' : '');
-      const leftSec = isActive ? Math.ceil((economy.baitActiveUntil - Date.now())/1000) : 0;
+      card.className = 'shopCard';
+      card.style.setProperty('--rc', RARITY[entry.rarity].color);
       card.innerHTML = `
-        <div class="icon">${bait.icon}</div>
-        <div class="name">${bait.name}</div>
-        <div class="effect">${bait.desc}</div>
-        <div class="price">${bait.price} 크레딧 / 개</div>
-        <div class="effect">보유: ${owned}개 ${isActive ? `· 효과 중(${leftSec}s)` : ''}</div>
+        <img class="dexImg" src="${dexFishImage(FISH_BY_NAME[name] || {bodyType:'oval',colorKey:'silver'}, false)}" width="72" height="48" alt="">
+        <div class="name">${name}</div>
+        <div class="stars" style="color:${RARITY[entry.rarity].color}">${starsStr(RARITY[entry.rarity].stars)}</div>
+        <div class="effect">최대 ${entry.best}cm · 개당 ${unitPrice}C</div>
+        <div class="price">보유 ${count}개</div>
       `;
-      const buyBtn = document.createElement('button');
-      buyBtn.textContent = '구매';
-      buyBtn.disabled = economy.credits < bait.price;
-      buyBtn.addEventListener('click', () => {
-        if (economy.credits < bait.price) { setShopStatus('크레딧이 부족해요.'); return; }
-        economy.credits -= bait.price; economy.baits[key] = (economy.baits[key]||0) + 1;
+      const sellOneBtn = document.createElement('button');
+      sellOneBtn.textContent = '1개 판매';
+      sellOneBtn.addEventListener('click', () => {
+        economy.stock[name] -= 1;
+        if (economy.stock[name] <= 0) delete economy.stock[name];
+        economy.credits += unitPrice;
         saveEconomy(); updateTopStats(); renderShop(); queueSyncPush();
-        setShopStatus(bait.name + '을(를) 구매했어요.');
+        bumpDailyProgress('creditsEarnedToday', unitPrice);
+        setShopStatus(`${name} 1마리를 팔아 ${unitPrice}크레딧을 받았어요.`);
       });
-      const useBtn = document.createElement('button');
-      useBtn.textContent = isActive ? '효과 사용중' : '사용';
-      useBtn.disabled = owned <= 0 || !!activeType;
-      useBtn.addEventListener('click', () => {
-        if (owned <= 0 || activeBait()) return;
-        economy.baits[key] -= 1;
-        economy.activeBaitType = key;
-        economy.baitActiveUntil = Date.now() + bait.duration;
+      const sellAllOfBtn = document.createElement('button');
+      sellAllOfBtn.textContent = `전량(${count}) 판매`;
+      sellAllOfBtn.addEventListener('click', () => {
+        const gained = unitPrice * count;
+        delete economy.stock[name];
+        economy.credits += gained;
         saveEconomy(); updateTopStats(); renderShop(); queueSyncPush();
-        bumpDailyProgress('baitUsedCount', 1);
-        setShopStatus(bait.name + ' 효과가 시작됐어요!');
+        bumpDailyProgress('creditsEarnedToday', gained);
+        setShopStatus(`${name} ${count}마리를 팔아 ${gained}크레딧을 받았어요.`);
       });
-      card.appendChild(buyBtn);
-      card.appendChild(useBtn);
+      card.appendChild(sellOneBtn);
+      card.appendChild(sellAllOfBtn);
+      grid.appendChild(card);
+    }
+    return;
+  }
+
+  if (shopTab === 'bait' || shopTab === 'booster') {
+    const isBait = shopTab === 'bait';
+    const TYPES = isBait ? BAIT_TYPES : BOOSTER_TYPES;
+    const store = isBait ? economy.baits : economy.boosters;
+    for (const [key, item] of Object.entries(TYPES)) {
+      const owned = store[key] || 0;
+      const isEquipped = isBait && economy.equippedBait === key;
+      const card = document.createElement('div');
+      card.className = 'shopCard' + (isEquipped ? ' equipped' : '');
+      card.innerHTML = `
+        <div class="icon">${item.icon}</div>
+        <div class="name">${item.name}</div>
+        <div class="effect">${item.desc}</div>
+        <div class="price">낱개 ${item.unitPrice}C · ${item.bundleSize}개 묶음 ${item.bundlePrice}C</div>
+        <div class="effect">보유: ${owned}개 ${isEquipped ? '· 장착 중' : ''}</div>
+      `;
+      const buyOneBtn = document.createElement('button');
+      buyOneBtn.textContent = '낱개 구매';
+      buyOneBtn.disabled = economy.credits < item.unitPrice;
+      buyOneBtn.addEventListener('click', () => {
+        if (economy.credits < item.unitPrice) { setShopStatus('크레딧이 부족해요.'); return; }
+        economy.credits -= item.unitPrice; store[key] = (store[key]||0) + 1;
+        saveEconomy(); updateTopStats(); renderShop(); queueSyncPush();
+        setShopStatus(item.name + ' 1개를 구매했어요.');
+      });
+      const buyBundleBtn = document.createElement('button');
+      buyBundleBtn.textContent = `${item.bundleSize}개 묶음 구매`;
+      buyBundleBtn.disabled = economy.credits < item.bundlePrice;
+      buyBundleBtn.addEventListener('click', () => {
+        if (economy.credits < item.bundlePrice) { setShopStatus('크레딧이 부족해요.'); return; }
+        economy.credits -= item.bundlePrice; store[key] = (store[key]||0) + item.bundleSize;
+        saveEconomy(); updateTopStats(); renderShop(); queueSyncPush();
+        setShopStatus(item.name + ` ${item.bundleSize}개 묶음을 구매했어요.`);
+      });
+      card.appendChild(buyOneBtn);
+      card.appendChild(buyBundleBtn);
+      if (isBait) {
+        const equipBtn = document.createElement('button');
+        equipBtn.textContent = isEquipped ? '해제' : '장착';
+        equipBtn.disabled = !isEquipped && owned <= 0;
+        equipBtn.addEventListener('click', () => {
+          economy.equippedBait = isEquipped ? null : key;
+          saveEconomy(); renderShop(); queueSyncPush(); updateBaitBadge();
+          setShopStatus(isEquipped ? `${item.name} 장착을 해제했어요.` : `${item.name}을(를) 장착했어요. 캐스팅마다 1개씩 소모돼요.`);
+        });
+        card.appendChild(equipBtn);
+      }
       grid.appendChild(card);
     }
     return;
@@ -2637,15 +2748,19 @@ function renderShop() {
 
 function activateShopTab(tab) {
   shopTab = tab;
+  document.getElementById('shopTabSell').classList.toggle('active', tab==='sell');
   document.getElementById('shopTabReel').classList.toggle('active', tab==='reel');
   document.getElementById('shopTabRod').classList.toggle('active', tab==='rod');
   document.getElementById('shopTabBait').classList.toggle('active', tab==='bait');
+  document.getElementById('shopTabBooster').classList.toggle('active', tab==='booster');
   setShopStatus('');
   renderShop();
 }
+document.getElementById('shopTabSell').addEventListener('click', () => activateShopTab('sell'));
 document.getElementById('shopTabReel').addEventListener('click', () => activateShopTab('reel'));
 document.getElementById('shopTabRod').addEventListener('click', () => activateShopTab('rod'));
 document.getElementById('shopTabBait').addEventListener('click', () => activateShopTab('bait'));
+document.getElementById('shopTabBooster').addEventListener('click', () => activateShopTab('booster'));
 document.getElementById('shopBtn').addEventListener('click', () => {
   document.getElementById('shopOverlay').style.display = 'flex';
   activateShopTab(shopTab);
@@ -2654,21 +2769,18 @@ document.getElementById('shopClose').addEventListener('click', () => {
   document.getElementById('shopOverlay').style.display = 'none';
 });
 
-function tickBaitBadge() {
+function updateBaitBadge() {
   const badge = document.getElementById('baitBadge');
-  const type = activeBait();
-  const left = economy.baitActiveUntil - Date.now();
-  if (type && left > 0) {
-    const secs = Math.ceil(left/1000);
+  const type = economy.equippedBait;
+  if (type && (economy.baits[type]||0) > 0) {
     const bait = BAIT_TYPES[type];
     badge.style.display = 'inline-flex';
-    badge.textContent = `${bait.icon} ${bait.name} 효과 ${Math.floor(secs/60)}:${String(secs%60).padStart(2,'0')}`;
+    badge.textContent = `${bait.icon} ${bait.name} 장착 중 · ${economy.baits[type]}개 남음`;
   } else {
     badge.style.display = 'none';
   }
 }
-setInterval(tickBaitBadge, 1000);
-tickBaitBadge();
+updateBaitBadge();
 
 /* =========================================================
    Daily quests + login streak
