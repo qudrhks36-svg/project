@@ -308,6 +308,54 @@
   .achCard .desc { font-size: 10.5px; color: #9db0c0; }
   .achCard .reward { font-size: 10.5px; color: #ffd54f; font-weight: bold; }
 
+  /* ---- Daily quests ---- */
+  #dailyOverlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.78);
+    display: none; align-items: center; justify-content: center; z-index: 21;
+  }
+  #dailyPanel {
+    width: min(460px, 92vw); background: linear-gradient(180deg,#16232f,#0e1720); border-radius: 14px;
+    padding: 18px 20px; color: #fff; display: flex; flex-direction: column; gap: 10px;
+    box-shadow: 0 10px 50px rgba(0,0,0,0.7); border: 1px solid rgba(255,255,255,0.08);
+  }
+  #dailyPanel h2 { margin: 0; font-size: 20px; }
+  #dailyStreak { font-size: 13px; color: #ffb74d; font-weight: bold; }
+  #dailyGrid { display: flex; flex-direction: column; gap: 10px; }
+  .dailyCard {
+    background: linear-gradient(180deg,#1e2f3d,#152029); border-radius: 10px; padding: 12px 14px;
+    border: 1px solid rgba(255,255,255,0.08); display: flex; flex-direction: column; gap: 6px;
+  }
+  .dailyCard.done { border-color: #66bb6a; box-shadow: 0 0 10px -2px rgba(102,187,106,0.6); }
+  .dailyCard .qname { font-size: 13px; font-weight: bold; }
+  .dailyCard .qbarTrack { height: 8px; background: rgba(255,255,255,0.1); border-radius: 5px; overflow: hidden; }
+  .dailyCard .qbarFill { height: 100%; background: linear-gradient(90deg,#5fd0ff,#2b9fe0); }
+  .dailyCard.done .qbarFill { background: linear-gradient(90deg,#8fe0a0,#4caf50); }
+  .dailyCard .qmeta { font-size: 11px; color: #9db0c0; }
+
+  /* ---- Hall of fame ---- */
+  #recordsOverlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.78);
+    display: none; align-items: center; justify-content: center; z-index: 21;
+  }
+  #recordsPanel {
+    width: min(560px, 92vw); max-height: 84vh; background: linear-gradient(180deg,#16232f,#0e1720); border-radius: 14px;
+    padding: 18px 20px; color: #fff; display: flex; flex-direction: column; gap: 10px;
+    box-shadow: 0 10px 50px rgba(0,0,0,0.7); border: 1px solid rgba(255,255,255,0.08);
+  }
+  #recordsPanel h2 { margin: 0; font-size: 20px; }
+  .recordsSub { margin: 0; font-size: 12px; color: #9db0c0; }
+  #recordsList { display: flex; flex-direction: column; gap: 4px; overflow-y: auto; max-height: 56vh; }
+  .recordRow {
+    display: grid; grid-template-columns: 34px 1fr 90px 64px 56px; gap: 8px; align-items: center;
+    padding: 8px 10px; border-radius: 8px; font-size: 12.5px;
+  }
+  .recordRow:nth-child(odd) { background: rgba(255,255,255,0.03); }
+  .rrank { font-size: 15px; text-align: center; }
+  .rname { font-weight: bold; }
+  .rsize { font-variant-numeric: tabular-nums; color: #7fe0ff; font-weight: bold; }
+  .rcount { color: #9db0c0; text-align: right; }
+  .recordEmpty { font-size: 13px; color: #9db0c0; text-align: center; padding: 20px 0; }
+
   #achToast {
     position: fixed; top: 16px; right: 16px; z-index: 40;
     display: flex; align-items: center; gap: 10px;
@@ -347,6 +395,8 @@
     <button class="btn" id="dexBtn">📖 도감 (<span id="dexCountTop">0</span>/<span id="dexTotalCount">80</span>)</button>
     <div class="chip">🐟 <b id="totalCatches">0</b>마리 &nbsp;·&nbsp; ⭐ <b id="totalScore">0</b>점 &nbsp;·&nbsp; 💰 <b id="creditsNum">0</b>C</div>
     <div id="topbarActions">
+      <button class="btn" id="dailyBtn">📅 일일</button>
+      <button class="btn" id="recordsBtn">🏅 기록실</button>
       <button class="btn" id="achBtn">🏆 업적</button>
       <button class="btn" id="shopBtn">🛒 상점</button>
       <button class="btn" id="syncBtn">🔗 동기화</button>
@@ -475,6 +525,24 @@
     <h2>🏆 업적</h2>
     <div id="achGrid"></div>
     <button class="btn" id="achClose" style="align-self:flex-end;">닫기</button>
+  </div>
+</div>
+
+<div id="dailyOverlay">
+  <div id="dailyPanel">
+    <h2>📅 일일 퀘스트</h2>
+    <div id="dailyStreak">🔥 연속 접속 1일째</div>
+    <div id="dailyGrid"></div>
+    <button class="btn" id="dailyClose" style="align-self:flex-end;">닫기</button>
+  </div>
+</div>
+
+<div id="recordsOverlay">
+  <div id="recordsPanel">
+    <h2>🏅 명예의 전당</h2>
+    <p class="recordsSub">역대 잡은 개체 중 크기 상위 12마리</p>
+    <div id="recordsList"></div>
+    <button class="btn" id="recordsClose" style="align-self:flex-end;">닫기</button>
   </div>
 </div>
 
@@ -882,17 +950,25 @@ const ROD_TIERS = [
   { id:'high',   name:'고수 낚싯대',   icon:'🎋', price:900,  gainBoost:0.16 },
   { id:'master', name:'마스터 낚싯대', icon:'🎋', price:2200, gainBoost:0.24 },
 ];
-const BAIT_PRICE = 150;
-const BAIT_DURATION_MS = 2*60*1000;
-const BAIT_RARE_MUL = 1.30;
+const BAIT_TYPES = {
+  basic:  { name:'미끼(떡밥)', icon:'🪱', price:150, duration:2*60*1000, desc:'2분간 희귀(★3+) 어종 등장률 +30%' },
+  boss:   { name:'특급 미끼',  icon:'🦑', price:400, duration:90*1000,   desc:'90초간 초대형(보스) 어종 등장 확률 +60%' },
+  trophy: { name:'대물 미끼',  icon:'📏', price:250, duration:2*60*1000, desc:'2분간 대물(대형 개체) 판정 확률 대폭 상승' },
+};
 
 function defaultEconomy() {
   return {
     credits:0, reels:['basic'], rods:['basic'], equippedReel:'basic', equippedRod:'basic',
-    baitCount:0, baitActiveUntil:0, trophyCatches:0, unlockedAchievements:[],
+    baits:{ basic:0, boss:0, trophy:0 }, activeBaitType:null, baitActiveUntil:0,
+    trophyCatches:0, unlockedAchievements:[],
+    dailyDate:null, dailyQuestIds:[], dailyProgress:{}, dailyClaimed:[], loginStreak:0,
   };
 }
 let economy = Object.assign(defaultEconomy(), JSON.parse(localStorage.getItem('fishingEconomyV1') || '{}'));
+// migrate pre-existing single-bait saves into the new multi-bait structure
+if (!economy.baits) economy.baits = { basic:0, boss:0, trophy:0 };
+if (economy.baitCount) { economy.baits.basic = (economy.baits.basic||0) + economy.baitCount; economy.baitCount = 0; }
+if (economy.baitActiveUntil > Date.now() && !economy.activeBaitType) economy.activeBaitType = 'basic';
 function saveEconomy() { localStorage.setItem('fishingEconomyV1', JSON.stringify(economy)); }
 function reelTierById(id) { return REEL_TIERS.find(r => r.id === id) || REEL_TIERS[0]; }
 function rodTierById(id) { return ROD_TIERS.find(r => r.id === id) || ROD_TIERS[0]; }
@@ -902,7 +978,10 @@ function equipmentBuffs() {
     gainMul: 1 + rodTierById(economy.equippedRod).gainBoost,
   };
 }
-function isBaitActive() { return economy.baitActiveUntil > Date.now(); }
+function activeBait() {
+  if (economy.activeBaitType && economy.baitActiveUntil <= Date.now()) { economy.activeBaitType = null; saveEconomy(); }
+  return economy.activeBaitType;
+}
 
 /* =========================================================
    Sound effects (synthesized via Web Audio API — no asset files)
@@ -1032,8 +1111,8 @@ function fishDef(f) { return { name:f[0], rarity:f[1], minLen:f[2], maxLen:f[3],
 
 function pickWeightedFish() {
   const p = pool();
-  const w = isBaitActive()
-    ? { ...RARITY_WEIGHT, rare: RARITY_WEIGHT.rare*BAIT_RARE_MUL, legendary: RARITY_WEIGHT.legendary*BAIT_RARE_MUL }
+  const w = activeBait() === 'basic'
+    ? { ...RARITY_WEIGHT, rare: RARITY_WEIGHT.rare*1.3, legendary: RARITY_WEIGHT.legendary*1.3 }
     : RARITY_WEIGHT;
   const total = p.reduce((s,f) => s + w[f[1]], 0);
   let r = Math.random() * total;
@@ -1069,7 +1148,7 @@ function beginWaiting() {
 function triggerBite() {
   state = 'bite';
   const bossChance = REGIONS[spot].ocean
-    ? (BOSS_CHANCE_BASE * (isBaitActive() ? BAIT_RARE_MUL : 1)) + (bobber._power/100)*0.03
+    ? (BOSS_CHANCE_BASE * (activeBait() === 'boss' ? 1.6 : 1)) + (bobber._power/100)*0.03
     : 0;
   const isBoss = Math.random() < bossChance;
   const f = isBoss ? BOSS_FISH[Math.floor(Math.random()*BOSS_FISH.length)] : pickWeightedFish();
@@ -1103,7 +1182,8 @@ function catchSuccess() {
   const conf = RARITY[currentFish.rarity];
   const size = (currentFish.minLen + Math.random()*(currentFish.maxLen-currentFish.minLen)).toFixed(1);
   const sizeRatio = (size-currentFish.minLen)/(currentFish.maxLen-currentFish.minLen+0.001);
-  const isTrophy = !isBoss && sizeRatio >= 0.85;
+  const trophyThreshold = activeBait() === 'trophy' ? 0.65 : 0.85;
+  const isTrophy = !isBoss && sizeRatio >= trophyThreshold;
   let points = Math.round(conf.points * (0.7 + 0.6*sizeRatio));
   if (isTrophy) points = Math.round(points * 1.5);
   totalScore += points; saveScore();
@@ -1126,6 +1206,11 @@ function catchSuccess() {
   SFX.catchSuccess(isBoss);
   state = 'result'; resultTimer = isBoss ? 3.4 : 2.6;
   document.getElementById('stageWrap').classList.remove('bossMode');
+  bumpDailyProgress('catchCount', 1);
+  if (RARITY[currentFish.rarity].stars >= 3) bumpDailyProgress('rareCount', 1);
+  if (isNew) bumpDailyProgress('newDexCount', 1);
+  bumpDailyProgress('creditsEarnedToday', creditsEarned);
+  if (spot === 'pacific' || spot === 'atlantic') bumpDailyProgress('oceanCount', 1);
   checkAchievements();
 }
 
@@ -2196,39 +2281,45 @@ function renderShop() {
   document.getElementById('shopCreditsNum').textContent = economy.credits;
 
   if (shopTab === 'bait') {
-    const active = isBaitActive();
-    const card = document.createElement('div');
-    card.className = 'shopCard';
-    const leftSec = active ? Math.ceil((economy.baitActiveUntil - Date.now())/1000) : 0;
-    card.innerHTML = `
-      <div class="icon">🪱</div>
-      <div class="name">미끼(떡밥)</div>
-      <div class="effect">사용 시 2분간 희귀(★3+) 등장률 +30%</div>
-      <div class="price">${BAIT_PRICE} 크레딧 / 개</div>
-      <div class="effect">보유: ${economy.baitCount}개 ${active ? `· 효과 중(${leftSec}s)` : ''}</div>
-    `;
-    const buyBtn = document.createElement('button');
-    buyBtn.textContent = '구매';
-    buyBtn.disabled = economy.credits < BAIT_PRICE;
-    buyBtn.addEventListener('click', () => {
-      if (economy.credits < BAIT_PRICE) { setShopStatus('크레딧이 부족해요.'); return; }
-      economy.credits -= BAIT_PRICE; economy.baitCount += 1;
-      saveEconomy(); updateTopStats(); renderShop(); queueSyncPush();
-      setShopStatus('미끼를 구매했어요.');
-    });
-    const useBtn = document.createElement('button');
-    useBtn.textContent = active ? '효과 사용중' : '사용';
-    useBtn.disabled = economy.baitCount <= 0 || active;
-    useBtn.addEventListener('click', () => {
-      if (economy.baitCount <= 0) return;
-      economy.baitCount -= 1;
-      economy.baitActiveUntil = Date.now() + BAIT_DURATION_MS;
-      saveEconomy(); updateTopStats(); renderShop(); queueSyncPush();
-      setShopStatus('미끼 효과가 시작됐어요!');
-    });
-    card.appendChild(buyBtn);
-    card.appendChild(useBtn);
-    grid.appendChild(card);
+    const activeType = activeBait();
+    for (const [key, bait] of Object.entries(BAIT_TYPES)) {
+      const owned = economy.baits[key] || 0;
+      const isActive = activeType === key;
+      const card = document.createElement('div');
+      card.className = 'shopCard' + (isActive ? ' equipped' : '');
+      const leftSec = isActive ? Math.ceil((economy.baitActiveUntil - Date.now())/1000) : 0;
+      card.innerHTML = `
+        <div class="icon">${bait.icon}</div>
+        <div class="name">${bait.name}</div>
+        <div class="effect">${bait.desc}</div>
+        <div class="price">${bait.price} 크레딧 / 개</div>
+        <div class="effect">보유: ${owned}개 ${isActive ? `· 효과 중(${leftSec}s)` : ''}</div>
+      `;
+      const buyBtn = document.createElement('button');
+      buyBtn.textContent = '구매';
+      buyBtn.disabled = economy.credits < bait.price;
+      buyBtn.addEventListener('click', () => {
+        if (economy.credits < bait.price) { setShopStatus('크레딧이 부족해요.'); return; }
+        economy.credits -= bait.price; economy.baits[key] = (economy.baits[key]||0) + 1;
+        saveEconomy(); updateTopStats(); renderShop(); queueSyncPush();
+        setShopStatus(bait.name + '을(를) 구매했어요.');
+      });
+      const useBtn = document.createElement('button');
+      useBtn.textContent = isActive ? '효과 사용중' : '사용';
+      useBtn.disabled = owned <= 0 || !!activeType;
+      useBtn.addEventListener('click', () => {
+        if (owned <= 0 || activeBait()) return;
+        economy.baits[key] -= 1;
+        economy.activeBaitType = key;
+        economy.baitActiveUntil = Date.now() + bait.duration;
+        saveEconomy(); updateTopStats(); renderShop(); queueSyncPush();
+        bumpDailyProgress('baitUsedCount', 1);
+        setShopStatus(bait.name + ' 효과가 시작됐어요!');
+      });
+      card.appendChild(buyBtn);
+      card.appendChild(useBtn);
+      grid.appendChild(card);
+    }
     return;
   }
 
@@ -2295,17 +2386,139 @@ document.getElementById('shopClose').addEventListener('click', () => {
 
 function tickBaitBadge() {
   const badge = document.getElementById('baitBadge');
+  const type = activeBait();
   const left = economy.baitActiveUntil - Date.now();
-  if (left > 0) {
+  if (type && left > 0) {
     const secs = Math.ceil(left/1000);
+    const bait = BAIT_TYPES[type];
     badge.style.display = 'inline-flex';
-    badge.textContent = `🎣 미끼 효과 ${Math.floor(secs/60)}:${String(secs%60).padStart(2,'0')}`;
+    badge.textContent = `${bait.icon} ${bait.name} 효과 ${Math.floor(secs/60)}:${String(secs%60).padStart(2,'0')}`;
   } else {
     badge.style.display = 'none';
   }
 }
 setInterval(tickBaitBadge, 1000);
 tickBaitBadge();
+
+/* =========================================================
+   Daily quests + login streak
+========================================================= */
+const DAILY_QUEST_POOL = [
+  { id:'catch_any',     progressKey:'catchCount',          target:5,   reward:40, desc:(n)=>`오늘 물고기 ${n}마리 잡기` },
+  { id:'catch_rare',    progressKey:'rareCount',           target:1,   reward:60, desc:(n)=>`오늘 희귀(★3+) 어종 ${n}마리 잡기` },
+  { id:'catch_newdex',  progressKey:'newDexCount',         target:1,   reward:60, desc:(n)=>`오늘 도감에 새 어종 ${n}종 등록하기` },
+  { id:'earn_credits',  progressKey:'creditsEarnedToday',  target:100, reward:50, desc:(n)=>`오늘 크레딧 ${n} 획득하기` },
+  { id:'use_bait',      progressKey:'baitUsedCount',       target:1,   reward:40, desc:(n)=>`오늘 미끼 ${n}회 사용하기` },
+  { id:'catch_ocean',   progressKey:'oceanCount',          target:2,   reward:50, desc:(n)=>`오늘 태평양/대서양에서 ${n}마리 잡기` },
+];
+function todayStr(d) {
+  d = d || new Date();
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+function seededPick(seedStr, pool, count) {
+  let seed = 0;
+  for (let i=0;i<seedStr.length;i++) seed = (seed*31 + seedStr.charCodeAt(i)) >>> 0;
+  const rand = () => { seed = (seed*1103515245 + 12345) >>> 0; return (seed % 10000) / 10000; };
+  const arr = pool.slice();
+  for (let i=arr.length-1;i>0;i--) { const j = Math.floor(rand()*(i+1)); [arr[i],arr[j]] = [arr[j],arr[i]]; }
+  return arr.slice(0, count);
+}
+function dailyQuestList() {
+  return economy.dailyQuestIds.map(id => DAILY_QUEST_POOL.find(q => q.id === id)).filter(Boolean);
+}
+function ensureDailyReset() {
+  const today = todayStr();
+  if (economy.dailyDate === today) return;
+  const yesterday = todayStr(new Date(Date.now() - 86400000));
+  economy.loginStreak = (economy.dailyDate === yesterday) ? (economy.loginStreak||0) + 1 : 1;
+  economy.dailyDate = today;
+  economy.dailyQuestIds = seededPick(today, DAILY_QUEST_POOL.map(q => q.id), 3);
+  economy.dailyProgress = {};
+  economy.dailyClaimed = [];
+  saveEconomy();
+  const reward = Math.min(200, 20 + (economy.loginStreak-1)*10);
+  economy.credits += reward;
+  saveEconomy(); updateTopStats(); queueSyncPush();
+  enqueueToast({ icon:'📅', name:`출석 ${economy.loginStreak}일째!`, reward });
+}
+function bumpDailyProgress(key, amount) {
+  ensureDailyReset();
+  economy.dailyProgress[key] = (economy.dailyProgress[key]||0) + amount;
+  checkDailyQuestCompletion();
+}
+function checkDailyQuestCompletion() {
+  let changed = false;
+  for (const q of dailyQuestList()) {
+    if (economy.dailyClaimed.includes(q.id)) continue;
+    if ((economy.dailyProgress[q.progressKey]||0) >= q.target) {
+      economy.dailyClaimed.push(q.id);
+      economy.credits += q.reward;
+      enqueueToast({ icon:'✅', name:'일일 퀘스트: ' + q.desc(q.target), reward:q.reward });
+      changed = true;
+    }
+  }
+  if (changed) { saveEconomy(); updateTopStats(); queueSyncPush(); }
+}
+function renderDaily() {
+  document.getElementById('dailyStreak').textContent = `🔥 연속 접속 ${economy.loginStreak||1}일째`;
+  const grid = document.getElementById('dailyGrid');
+  grid.innerHTML = '';
+  for (const q of dailyQuestList()) {
+    const prog = Math.min(q.target, economy.dailyProgress[q.progressKey]||0);
+    const claimed = economy.dailyClaimed.includes(q.id);
+    const card = document.createElement('div');
+    card.className = 'dailyCard' + (claimed ? ' done' : '');
+    card.innerHTML = `
+      <div class="qname">${claimed ? '✅ ' : ''}${q.desc(q.target)}</div>
+      <div class="qbarTrack"><div class="qbarFill" style="width:${(prog/q.target*100).toFixed(0)}%"></div></div>
+      <div class="qmeta">${prog}/${q.target} · +${q.reward} 크레딧</div>
+    `;
+    grid.appendChild(card);
+  }
+}
+document.getElementById('dailyBtn').addEventListener('click', () => {
+  ensureDailyReset();
+  document.getElementById('dailyOverlay').style.display = 'flex';
+  renderDaily();
+});
+document.getElementById('dailyClose').addEventListener('click', () => {
+  document.getElementById('dailyOverlay').style.display = 'none';
+});
+
+/* =========================================================
+   Hall of fame (personal size records)
+========================================================= */
+function renderRecords() {
+  const entries = Object.entries(dex).filter(([k]) => k !== '__economy').map(([name,e]) => ({ name, ...e }));
+  entries.sort((a,b) => b.best - a.best);
+  const top = entries.slice(0, 12);
+  const list = document.getElementById('recordsList');
+  list.innerHTML = '';
+  if (!top.length) {
+    list.innerHTML = '<div class="recordEmpty">아직 기록이 없어요. 첫 손맛을 봐야죠!</div>';
+    return;
+  }
+  const medal = ['🥇','🥈','🥉'];
+  top.forEach((e, i) => {
+    const row = document.createElement('div');
+    row.className = 'recordRow';
+    row.innerHTML = `
+      <div class="rrank">${medal[i] || '#' + (i+1)}</div>
+      <div class="rname">${e.name}</div>
+      <div class="rrarity" style="color:${RARITY[e.rarity] ? RARITY[e.rarity].color : '#fff'}">${RARITY[e.rarity] ? starsStr(RARITY[e.rarity].stars) : ''}</div>
+      <div class="rsize">${e.best}cm</div>
+      <div class="rcount">${e.count}마리</div>
+    `;
+    list.appendChild(row);
+  });
+}
+document.getElementById('recordsBtn').addEventListener('click', () => {
+  document.getElementById('recordsOverlay').style.display = 'flex';
+  renderRecords();
+});
+document.getElementById('recordsClose').addEventListener('click', () => {
+  document.getElementById('recordsOverlay').style.display = 'none';
+});
 
 /* =========================================================
    Achievements
@@ -2342,6 +2555,11 @@ function computeStatsSnapshot() {
 }
 
 let achievementQueue = [];
+function enqueueToast(toastObj) {
+  const wasEmpty = achievementQueue.length === 0;
+  achievementQueue.push(toastObj);
+  if (wasEmpty) showNextAchievementToast();
+}
 function checkAchievements() {
   const snap = computeStatsSnapshot();
   const unlocked = [];
@@ -2354,9 +2572,7 @@ function checkAchievements() {
   }
   if (unlocked.length) {
     saveEconomy();
-    const wasEmpty = achievementQueue.length === 0;
-    achievementQueue.push(...unlocked);
-    if (wasEmpty) showNextAchievementToast();
+    unlocked.forEach(enqueueToast);
     updateTopStats();
     queueSyncPush();
   }
@@ -2470,6 +2686,7 @@ document.getElementById('syncLoadBtn').addEventListener('click', () => {
 });
 
 updateTopStats();
+ensureDailyReset();
 checkAchievements();
 ensureSyncCode();
 requestAnimationFrame(gameLoop);
