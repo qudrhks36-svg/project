@@ -33,6 +33,7 @@
   }
   .btn:hover { background: #33475a; }
   .btn.active { background: linear-gradient(180deg,#5fd0ff,#2b9fe0); color: #00222e; border-color: #7fdcff; }
+  .btn.dexTabDone { box-shadow: 0 0 0 2px #ffd54f inset; }
 
   #topbarActions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
   #regionBar { width: 900px; display: flex; gap: 8px; flex-wrap: wrap; }
@@ -369,6 +370,31 @@
   #achToast .name { font-size: 14px; color: #fff; font-weight: bold; }
   #achToast .reward { font-size: 11px; color: #7fe0ff; }
 
+  /* ---- Global ranking ---- */
+  #rankOverlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.78);
+    display: none; align-items: center; justify-content: center; z-index: 21;
+  }
+  #rankPanel {
+    width: min(560px, 92vw); max-height: 84vh; background: linear-gradient(180deg,#16232f,#0e1720); border-radius: 14px;
+    padding: 18px 20px; color: #fff; display: flex; flex-direction: column; gap: 10px;
+    box-shadow: 0 10px 50px rgba(0,0,0,0.7); border: 1px solid rgba(255,255,255,0.08);
+  }
+  #rankPanel h2 { margin: 0; font-size: 20px; }
+  #rankNickRow { display: flex; gap: 8px; }
+  #rankNickRow input {
+    flex: 1; padding: 8px 10px; border-radius: 7px; border: 1px solid rgba(255,255,255,0.15);
+    background: rgba(255,255,255,0.06); color: #fff; font-size: 13px;
+  }
+  #rankList { display: flex; flex-direction: column; gap: 4px; overflow-y: auto; max-height: 50vh; }
+  .rankRow {
+    display: grid; grid-template-columns: 34px 1fr 76px 70px; gap: 8px; align-items: center;
+    padding: 8px 10px; border-radius: 8px; font-size: 12.5px;
+  }
+  .rankRow:nth-child(odd) { background: rgba(255,255,255,0.03); }
+  .rankRow.me { border: 1px solid #5fd0ff; box-shadow: 0 0 10px -2px rgba(95,208,255,0.6); }
+  #rankStatus { font-size: 12px; color: #7fe0ff; min-height: 16px; text-align: center; }
+
   /* ---- Tutorial ---- */
   #tutorialOverlay {
     position: fixed; inset: 0; background: rgba(0,0,0,0.82);
@@ -393,10 +419,11 @@
 <div id="wrap">
   <div id="topbar">
     <button class="btn" id="dexBtn">📖 도감 (<span id="dexCountTop">0</span>/<span id="dexTotalCount">80</span>)</button>
-    <div class="chip">🐟 <b id="totalCatches">0</b>마리 &nbsp;·&nbsp; ⭐ <b id="totalScore">0</b>점 &nbsp;·&nbsp; 💰 <b id="creditsNum">0</b>C</div>
+    <div class="chip">🐟 <b id="totalCatches">0</b>마리 &nbsp;·&nbsp; ⭐ <b id="totalScore">0</b>점 &nbsp;·&nbsp; 💰 <b id="creditsNum">0</b>C &nbsp;·&nbsp; <b id="envLabel">☀️ 낮 · 맑음</b></div>
     <div id="topbarActions">
       <button class="btn" id="dailyBtn">📅 일일</button>
       <button class="btn" id="recordsBtn">🏅 기록실</button>
+      <button class="btn" id="rankBtn">🌐 랭킹</button>
       <button class="btn" id="achBtn">🏆 업적</button>
       <button class="btn" id="shopBtn">🛒 상점</button>
       <button class="btn" id="syncBtn">🔗 동기화</button>
@@ -543,6 +570,20 @@
     <p class="recordsSub">역대 잡은 개체 중 크기 상위 12마리</p>
     <div id="recordsList"></div>
     <button class="btn" id="recordsClose" style="align-self:flex-end;">닫기</button>
+  </div>
+</div>
+
+<div id="rankOverlay">
+  <div id="rankPanel">
+    <h2>🌐 글로벌 랭킹</h2>
+    <div id="rankNickRow">
+      <input id="rankNickInput" type="text" placeholder="닉네임 설정 (선택, 랭킹에 표시됨)" maxlength="12">
+      <button class="btn" id="rankNickSave">저장</button>
+    </div>
+    <p class="recordsSub">전체 낚시꾼 중 점수 상위 50명</p>
+    <div id="rankList"></div>
+    <div id="rankStatus"></div>
+    <button class="btn" id="rankClose" style="align-self:flex-end;">닫기</button>
   </div>
 </div>
 
@@ -810,6 +851,48 @@ const REGIONS = {
   atlantic: { label:"대서양", icon:"🗺️", fishArr: ATLANTIC_FISH, ocean:true  },
 };
 
+/* ----- Dex completion rewards: one-time credit bonus per fully-filled region tab ----- */
+const DEX_REWARD_REGIONS = [
+  { id:'lake',     label:'호수',      arr:LAKE_FISH,     reward:300 },
+  { id:'sea',      label:'먼바다',    arr:SEA_FISH,      reward:400 },
+  { id:'pacific',  label:'태평양',    arr:PACIFIC_FISH,  reward:500 },
+  { id:'atlantic', label:'대서양',    arr:ATLANTIC_FISH, reward:500 },
+  { id:'special',  label:'특수 어종', arr:BOSS_FISH,     reward:800 },
+];
+
+/* ----- Weather & time-of-day: shifts spawn odds and background tint ----- */
+const WEATHER_TYPES = {
+  clear: { label:'맑음', icon:'☀️' },
+  rain:  { label:'비',   icon:'🌧️' },
+  fog:   { label:'안개', icon:'🌫️' },
+};
+let envState = { isNight:false, weather:'clear' };
+function computeEnvState() {
+  const h = new Date().getHours();
+  const isNight = (h >= 19 || h < 6);
+  const bucket = Math.floor(Date.now() / (6*60*1000));
+  const roll = Math.abs(Math.sin(bucket * 12.9898) * 43758.5453) % 1;
+  let weather = 'clear';
+  if (roll < 0.20) weather = 'rain';
+  else if (roll < 0.34) weather = 'fog';
+  return { isNight, weather };
+}
+function envSpawnMods() {
+  return {
+    rareWeightMul: envState.isNight ? 1.2 : 1,
+    legendaryWeightMul: envState.isNight ? 1.35 : 1,
+    bossChanceMul: envState.weather === 'rain' ? 1.5 : 1,
+    hookWindowMul: envState.weather === 'fog' ? 0.85 : 1,
+  };
+}
+function updateEnvBadge() {
+  const el = document.getElementById('envLabel');
+  if (!el) return;
+  const w = WEATHER_TYPES[envState.weather];
+  el.textContent = `${envState.isNight ? '🌙 밤' : '☀️ 낮'} · ${w.icon} ${w.label}`;
+}
+function tickEnvState() { envState = computeEnvState(); updateEnvBadge(); }
+
 /* ----- Level titles (flavor text, changes at thresholds) ----- */
 const TITLES = [
   { min:1,  title:"초보 낚시꾼" },
@@ -912,7 +995,7 @@ async function loadSaveByCode(code) {
     dex = row.dex || {};
     totalScore = row.total_score || 0;
     if (dex.__economy) { economy = Object.assign(defaultEconomy(), dex.__economy); saveEconomy(); }
-    saveDex(); saveScore(); updateTopStats();
+    saveDex(); saveScore(); updateTopStats(); checkDexCompletion();
     syncCode = code;
     localStorage.setItem(SYNC_CODE_KEY, syncCode);
     document.getElementById('syncCodeText').textContent = syncCode;
@@ -962,6 +1045,7 @@ function defaultEconomy() {
     baits:{ basic:0, boss:0, trophy:0 }, activeBaitType:null, baitActiveUntil:0,
     trophyCatches:0, unlockedAchievements:[],
     dailyDate:null, dailyQuestIds:[], dailyProgress:{}, dailyClaimed:[], loginStreak:0,
+    dexRewardsClaimed:[], nickname:'',
   };
 }
 let economy = Object.assign(defaultEconomy(), JSON.parse(localStorage.getItem('fishingEconomyV1') || '{}'));
@@ -969,6 +1053,8 @@ let economy = Object.assign(defaultEconomy(), JSON.parse(localStorage.getItem('f
 if (!economy.baits) economy.baits = { basic:0, boss:0, trophy:0 };
 if (economy.baitCount) { economy.baits.basic = (economy.baits.basic||0) + economy.baitCount; economy.baitCount = 0; }
 if (economy.baitActiveUntil > Date.now() && !economy.activeBaitType) economy.activeBaitType = 'basic';
+if (!economy.dexRewardsClaimed) economy.dexRewardsClaimed = [];
+if (economy.nickname == null) economy.nickname = '';
 function saveEconomy() { localStorage.setItem('fishingEconomyV1', JSON.stringify(economy)); }
 function reelTierById(id) { return REEL_TIERS.find(r => r.id === id) || REEL_TIERS[0]; }
 function rodTierById(id) { return ROD_TIERS.find(r => r.id === id) || ROD_TIERS[0]; }
@@ -1111,9 +1197,11 @@ function fishDef(f) { return { name:f[0], rarity:f[1], minLen:f[2], maxLen:f[3],
 
 function pickWeightedFish() {
   const p = pool();
-  const w = activeBait() === 'basic'
-    ? { ...RARITY_WEIGHT, rare: RARITY_WEIGHT.rare*1.3, legendary: RARITY_WEIGHT.legendary*1.3 }
-    : RARITY_WEIGHT;
+  const mods = envSpawnMods();
+  const w = { ...RARITY_WEIGHT };
+  if (activeBait() === 'basic') { w.rare *= 1.3; w.legendary *= 1.3; }
+  w.rare *= mods.rareWeightMul;
+  w.legendary *= mods.legendaryWeightMul;
   const total = p.reduce((s,f) => s + w[f[1]], 0);
   let r = Math.random() * total;
   for (const f of p) { r -= w[f[1]]; if (r <= 0) return f; }
@@ -1147,13 +1235,14 @@ function beginWaiting() {
 
 function triggerBite() {
   state = 'bite';
+  const mods = envSpawnMods();
   const bossChance = REGIONS[spot].ocean
-    ? (BOSS_CHANCE_BASE * (activeBait() === 'boss' ? 1.6 : 1)) + (bobber._power/100)*0.03
+    ? (BOSS_CHANCE_BASE * (activeBait() === 'boss' ? 1.6 : 1) * mods.bossChanceMul) + (bobber._power/100)*0.03
     : 0;
   const isBoss = Math.random() < bossChance;
   const f = isBoss ? BOSS_FISH[Math.floor(Math.random()*BOSS_FISH.length)] : pickWeightedFish();
   currentFish = fishDef(f);
-  biteTimer = RARITY[currentFish.rarity].hookWindow;
+  biteTimer = RARITY[currentFish.rarity].hookWindow * mods.hookWindowMul;
   shake = isBoss ? 18 : 8;
   document.getElementById('bossBanner').style.display = isBoss ? 'block' : 'none';
   setMsg(isBoss ? "!! 초대형 어종이다 – 지금이다 !!" : "지금이다! 탭하세요!");
@@ -1186,6 +1275,7 @@ function catchSuccess() {
   const isTrophy = !isBoss && sizeRatio >= trophyThreshold;
   let points = Math.round(conf.points * (0.7 + 0.6*sizeRatio));
   if (isTrophy) points = Math.round(points * 1.5);
+  if (envState.weather === 'fog') points = Math.round(points * 1.15);
   totalScore += points; saveScore();
   const creditsEarned = Math.max(1, Math.round(points / 4));
   economy.credits += creditsEarned;
@@ -1212,6 +1302,7 @@ function catchSuccess() {
   bumpDailyProgress('creditsEarnedToday', creditsEarned);
   if (spot === 'pacific' || spot === 'atlantic') bumpDailyProgress('oceanCount', 1);
   checkAchievements();
+  checkDexCompletion();
 }
 
 function catchFail(reason) {
@@ -1607,6 +1698,46 @@ function drawWaterTexture(t) {
   }
 }
 
+function drawWeatherOverlay(t) {
+  if (envState.isNight) {
+    ctx.save();
+    ctx.fillStyle = 'rgba(5,10,25,0.42)';
+    ctx.fillRect(0,0,W,H);
+    ctx.fillStyle = 'rgba(255,255,255,0.8)';
+    for (let i=0;i<40;i++) {
+      const sx = (i*197.3) % W;
+      const sy = ((i*83.7) % (HORIZON-10));
+      const tw = 0.3 + 0.7*Math.abs(Math.sin(t*1.3 + i*3.7));
+      ctx.globalAlpha = tw * 0.7;
+      ctx.fillRect(sx, sy, 1.6, 1.6);
+    }
+    ctx.restore();
+  }
+  if (envState.weather === 'rain') {
+    ctx.save();
+    ctx.strokeStyle = 'rgba(200,220,255,0.35)';
+    ctx.lineWidth = 1.4;
+    for (let i=0;i<70;i++) {
+      const rx = (i*53.7 + t*260) % (W+40) - 20;
+      const ry = (i*37.1 + t*640) % H;
+      ctx.beginPath();
+      ctx.moveTo(rx, ry);
+      ctx.lineTo(rx-8, ry+22);
+      ctx.stroke();
+    }
+    ctx.restore();
+  } else if (envState.weather === 'fog') {
+    ctx.save();
+    const fog = ctx.createLinearGradient(0,HORIZON-60,0,H);
+    fog.addColorStop(0,'rgba(230,235,240,0.5)');
+    fog.addColorStop(0.5,'rgba(230,235,240,0.22)');
+    fog.addColorStop(1,'rgba(230,235,240,0.4)');
+    ctx.fillStyle = fog;
+    ctx.fillRect(0,0,W,H);
+    ctx.restore();
+  }
+}
+
 function drawBackground(now) {
   const t = now/1000;
   if (spot === 'lake') drawBackgroundLake(t);
@@ -1614,6 +1745,7 @@ function drawBackground(now) {
   else if (spot === 'pacific') drawBackgroundPacific(t);
   else if (spot === 'atlantic') drawBackgroundAtlantic(t);
   drawWaterTexture(t);
+  drawWeatherOverlay(t);
   // foreground dock plank strip
   ctx.fillStyle = '#33241a';
   ctx.fillRect(0, H-30, W, 30);
@@ -2232,6 +2364,7 @@ function dexFishImage(def, locked) {
 const DEX_TAB_SRC = { lake:LAKE_FISH, sea:SEA_FISH, pacific:PACIFIC_FISH, atlantic:ATLANTIC_FISH, special:BOSS_FISH };
 let dexTab = 'lake';
 function renderDex() {
+  updateDexTabBadges();
   const grid = document.getElementById('dexGrid');
   grid.innerHTML = '';
   const list = (DEX_TAB_SRC[dexTab] || LAKE_FISH).map(fishDef);
@@ -2268,6 +2401,31 @@ document.querySelectorAll('.regionBtn').forEach(btn => {
     setMsg("스페이스바 또는 버튼으로 캐스팅하세요");
   });
 });
+
+/* =========================================================
+   Dex completion rewards
+========================================================= */
+function updateDexTabBadges() {
+  for (const r of DEX_REWARD_REGIONS) {
+    const btn = document.getElementById(DEX_TAB_IDS[r.id]);
+    if (btn) btn.classList.toggle('dexTabDone', r.arr.length > 0 && r.arr.every(f => !!dex[f[0]]));
+  }
+}
+function checkDexCompletion() {
+  if (!economy.dexRewardsClaimed) economy.dexRewardsClaimed = [];
+  let changed = false;
+  for (const r of DEX_REWARD_REGIONS) {
+    if (economy.dexRewardsClaimed.includes(r.id)) continue;
+    if (r.arr.length && r.arr.every(f => !!dex[f[0]])) {
+      economy.dexRewardsClaimed.push(r.id);
+      economy.credits += r.reward;
+      enqueueToast({ icon:'📖', name:`도감 완성: ${r.label}!`, reward:r.reward });
+      changed = true;
+    }
+  }
+  if (changed) { saveEconomy(); updateTopStats(); queueSyncPush(); }
+  updateDexTabBadges();
+}
 
 /* =========================================================
    Shop UI
@@ -2521,6 +2679,60 @@ document.getElementById('recordsClose').addEventListener('click', () => {
 });
 
 /* =========================================================
+   Global ranking (reads the existing fishing_saves sync table,
+   no extra DB schema needed — nickname lives inside dex.__economy)
+========================================================= */
+async function loadLeaderboard() {
+  const status = document.getElementById('rankStatus');
+  const list = document.getElementById('rankList');
+  status.textContent = '불러오는 중...';
+  list.innerHTML = '';
+  try {
+    const res = await sbFetch('fishing_saves?select=code,dex,total_score&order=total_score.desc&limit=50');
+    const rows = await res.json();
+    if (!res.ok || !Array.isArray(rows)) { status.textContent = '랭킹을 불러올 수 없어요.'; return; }
+    if (!rows.length) { status.textContent = '아직 랭킹 데이터가 없어요.'; return; }
+    const medal = ['🥇','🥈','🥉'];
+    rows.forEach((row, i) => {
+      const nick = (row.dex && row.dex.__economy && row.dex.__economy.nickname && row.dex.__economy.nickname.trim())
+        || ('낚시꾼 ' + String(row.code || '????').slice(0,4));
+      const catches = row.dex
+        ? Object.entries(row.dex).filter(([k]) => k !== '__economy').reduce((s,[,e]) => s + (e.count||0), 0)
+        : 0;
+      const el = document.createElement('div');
+      el.className = 'rankRow' + (row.code === syncCode ? ' me' : '');
+      el.innerHTML = `
+        <div class="rrank">${medal[i] || '#' + (i+1)}</div>
+        <div class="rname">${nick}</div>
+        <div class="rsize">${row.total_score}점</div>
+        <div class="rcount">${catches}마리</div>
+      `;
+      list.appendChild(el);
+    });
+    status.textContent = '';
+  } catch (e) {
+    status.textContent = '랭킹을 불러올 수 없어요 (네트워크).';
+  }
+}
+document.getElementById('rankBtn').addEventListener('click', () => {
+  document.getElementById('rankOverlay').style.display = 'flex';
+  document.getElementById('rankNickInput').value = economy.nickname || '';
+  loadLeaderboard();
+});
+document.getElementById('rankClose').addEventListener('click', () => {
+  document.getElementById('rankOverlay').style.display = 'none';
+});
+document.getElementById('rankNickSave').addEventListener('click', async () => {
+  const input = document.getElementById('rankNickInput');
+  economy.nickname = input.value.trim().slice(0,12);
+  saveEconomy();
+  await ensureSyncCode();
+  await pushSaveNow();
+  document.getElementById('rankStatus').textContent = '닉네임이 저장됐어요.';
+  loadLeaderboard();
+});
+
+/* =========================================================
    Achievements
 ========================================================= */
 const ACHIEVEMENTS = [
@@ -2688,6 +2900,9 @@ document.getElementById('syncLoadBtn').addEventListener('click', () => {
 updateTopStats();
 ensureDailyReset();
 checkAchievements();
+checkDexCompletion();
+tickEnvState();
+setInterval(tickEnvState, 60*1000);
 ensureSyncCode();
 requestAnimationFrame(gameLoop);
 </script>
