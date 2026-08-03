@@ -195,11 +195,6 @@
     font-size: 11px; font-weight: 900; padding: 2px 10px; border-radius: 10px; margin: 0 3px 4px;
     letter-spacing: 1px; box-shadow: 0 0 10px rgba(255,193,7,0.7);
   }
-  #insuranceTag {
-    display: none; background: linear-gradient(135deg,#4fc3f7,#0277bd); color: #fff;
-    font-size: 11px; font-weight: 900; padding: 2px 10px; border-radius: 10px; margin: 0 3px 4px;
-    letter-spacing: 1px; box-shadow: 0 0 10px rgba(79,195,247,0.7);
-  }
   #failCard {
     width: 60%; margin-bottom: 22px; background: rgba(30,10,10,0.75); border-radius: 16px;
     padding: 14px 20px; color: #ffb3ab; text-align: center; border: 1px solid rgba(255,90,90,0.35);
@@ -487,7 +482,6 @@
       <div id="catchCard">
         <div id="newTag" class="newTag" style="display:none;">NEW!</div>
         <div id="trophyTag">★ 대물 ★</div>
-        <div id="insuranceTag">🛡️ 보험 발동</div>
         <div class="stars" id="popStars">★★★☆☆</div>
         <h2 id="popName">이름</h2>
         <div class="sizeRow" id="popSize">32.4cm</div>
@@ -1126,16 +1120,16 @@ const BAIT_TYPES = {
 /* ----- Consumables: boosters/insurance, count-based, auto-applied (no equip step) ----- */
 const BOOSTER_TYPES = {
   exp:       { name:'경험치 부스터', icon:'✨', unitPrice:45, bundlePrice:360, bundleSize:10, desc:'보유 중 다음 포획 1회의 획득 점수 +50%' },
-  insurance: { name:'보험권',       icon:'🛡️', unitPrice:80, bundlePrice:640, bundleSize:10, desc:'물고기를 놓치거나 줄이 끊어질 때 자동으로 1개 소모되어 포획을 지켜줌' },
+  insurance: { name:'보험권',       icon:'🛡️', unitPrice:80, bundlePrice:640, bundleSize:10, desc:'물고기를 놓치거나 줄이 끊어질 때 자동 소모되어 도망가지 못하게 막고 처음부터 다시 도전하게 해줌' },
 };
 
 /* ----- Cosmetic rig skins: purely visual (rod + reel colors), no gameplay effect ----- */
 const SKIN_TIERS = [
-  { id:'classic', name:'클래식 우드', icon:'🟤', price:0,   rod:['#3a2a1a','#7a5a34'], reel:['#565f66','#20262b'], spool:['#c9d3d8','#7c8890'] },
-  { id:'navy',    name:'네이비 카본', icon:'🔵', price:400, rod:['#0d1b2a','#3a5a78'], reel:['#1c2933','#0a1116'], spool:['#7fd0ff','#2b6f9e'] },
-  { id:'gold',    name:'골드 프로',   icon:'🟡', price:800, rod:['#7a5a0a','#f2d585'], reel:['#8a6a1a','#3a2a05'], spool:['#ffe9a8','#c9962c'] },
-  { id:'sakura',  name:'벚꽃 핑크',   icon:'🌸', price:600, rod:['#7a2f45','#f2a8c0'], reel:['#5c2233','#2a0f18'], spool:['#ffd6e3','#e08aa8'] },
-  { id:'emerald', name:'에메랄드',    icon:'🟢', price:600, rod:['#0a3d33','#2fd9b8'], reel:['#123a30','#04150f'], spool:['#8fe8d5','#1a9b80'] },
+  { id:'classic', name:'클래식 우드', icon:'🟤', price:0,    rod:['#3a2a1a','#7a5a34'], reel:['#565f66','#20262b'], spool:['#c9d3d8','#7c8890'] },
+  { id:'navy',    name:'네이비 카본', icon:'🔵', price:800,  rod:['#0d1b2a','#3a5a78'], reel:['#1c2933','#0a1116'], spool:['#7fd0ff','#2b6f9e'] },
+  { id:'sakura',  name:'벚꽃 핑크',   icon:'🌸', price:900,  rod:['#7a2f45','#f2a8c0'], reel:['#5c2233','#2a0f18'], spool:['#ffd6e3','#e08aa8'] },
+  { id:'emerald', name:'에메랄드',    icon:'🟢', price:1000, rod:['#0a3d33','#2fd9b8'], reel:['#123a30','#04150f'], spool:['#8fe8d5','#1a9b80'] },
+  { id:'gold',    name:'골드 프로',   icon:'🟡', price:1200, rod:['#7a5a0a','#f2d585'], reel:['#8a6a1a','#3a2a05'], spool:['#ffe9a8','#c9962c'] },
 ];
 
 function defaultEconomy() {
@@ -1407,14 +1401,13 @@ function beginReeling() {
   setMsg(isBoss ? "필사적으로 버텨라!!" : "타이밍 맞춰 탭! 릴을 감으세요");
 }
 
-function catchSuccess(insured) {
+function catchSuccess() {
   const isBoss = currentFish.rarity === 'boss';
   const conf = RARITY[currentFish.rarity];
-  const size = insured ? currentFish.minLen.toFixed(1)
-    : (currentFish.minLen + Math.random()*(currentFish.maxLen-currentFish.minLen)).toFixed(1);
+  const size = (currentFish.minLen + Math.random()*(currentFish.maxLen-currentFish.minLen)).toFixed(1);
   const sizeRatio = (size-currentFish.minLen)/(currentFish.maxLen-currentFish.minLen+0.001);
   const trophyThreshold = castBaitType === 'trophy' ? 0.65 : 0.85;
-  const isTrophy = !insured && !isBoss && sizeRatio >= trophyThreshold;
+  const isTrophy = !isBoss && sizeRatio >= trophyThreshold;
   let points = Math.round(conf.points * (0.7 + 0.6*sizeRatio));
   if (isTrophy) points = Math.round(points * 1.5);
   if (envState.weather === 'fog') points = Math.round(points * 1.15);
@@ -1436,7 +1429,7 @@ function catchSuccess(insured) {
   saveEconomy(); queueSyncPush();
   const sellValue = fishSellPrice(currentFish.name);
 
-  resultData = { ok:true, name:currentFish.name, rarity:currentFish.rarity, size, points, sellValue, isNew, isTrophy, isBoss, isBoosted, isInsured: !!insured };
+  resultData = { ok:true, name:currentFish.name, rarity:currentFish.rarity, size, points, sellValue, isNew, isTrophy, isBoss, isBoosted };
   showCatchReveal(resultData);
   SFX.catchSuccess(isBoss);
   state = 'result'; resultTimer = isBoss ? 3.4 : 2.6;
@@ -1453,8 +1446,10 @@ function catchFail(reason) {
   if ((reason === 'snapped' || reason === 'escaped') && (economy.boosters.insurance || 0) > 0) {
     economy.boosters.insurance -= 1;
     saveEconomy(); updateTopStats(); queueSyncPush();
-    setMsg('🛡️ 보험권 발동! 놓치지 않았습니다');
-    catchSuccess(true);
+    shake = Math.max(shake, 10);
+    SFX.bite();
+    beginReeling();
+    setMsg('🛡️ 보험권 발동! 도망가지 못했다 - 처음부터 다시!');
     return;
   }
   resultData = { ok:false, reason };
@@ -1473,7 +1468,6 @@ function showCatchReveal(d) {
   card.classList.toggle('bossCard', !!d.isBoss);
   document.getElementById('newTag').style.display = d.isNew ? 'inline-block' : 'none';
   document.getElementById('trophyTag').style.display = d.isTrophy ? 'inline-block' : 'none';
-  document.getElementById('insuranceTag').style.display = d.isInsured ? 'inline-block' : 'none';
   document.getElementById('popStars').textContent = starsStr(RARITY[d.rarity].stars);
   document.getElementById('popStars').style.color = RARITY[d.rarity].color;
   document.getElementById('popName').textContent = (d.isBoss ? '🌊 ' : '') + d.name;
