@@ -1319,18 +1319,20 @@ function usesMashFinisher(rarity) { return rarity === 'legendary' || rarity === 
 let resultData = null;
 let ripples = [];
 
-/* ----- Cast particles: small skin-specific flourish spawned when a rod skin has castEffect ----- */
+/* ----- Cast particles: skin-specific flourish spawned when a rod skin has castEffect ----- */
 let castParticles = [];
 function spawnCastEffect() {
   const skin = skinTierById(economy.equippedSkin);
   if (!skin.castEffect) return;
-  for (let i=0;i<12;i++) {
+  for (let i=0;i<30;i++) {
     castParticles.push({
       shape: skin.castEffect.shape, color: skin.castEffect.color,
-      x: rod.tipX + (Math.random()-0.5)*16, y: rod.tipY + (Math.random()-0.5)*16,
-      vx: (Math.random()-0.5)*70 - 20, vy: -60 - Math.random()*50,
-      rot: Math.random()*Math.PI*2, vr: (Math.random()-0.5)*5,
-      life: 0, maxLife: 0.7 + Math.random()*0.5,
+      x: rod.tipX + (Math.random()-0.5)*24, y: rod.tipY + (Math.random()-0.5)*24,
+      vx: (Math.random()-0.5)*140 - 40, vy: -140 - Math.random()*110,
+      rot: Math.random()*Math.PI*2, vr: (Math.random()-0.5)*7,
+      wob: Math.random()*Math.PI*2, wobSpeed: 3 + Math.random()*3,
+      size: 8 + Math.random()*7,
+      life: 0, maxLife: 1.3 + Math.random()*0.7,
     });
   }
 }
@@ -1338,36 +1340,45 @@ function updateCastParticles(dt) {
   if (!castParticles.length) return;
   for (const p of castParticles) {
     p.life += dt;
-    p.vy += 90*dt;
-    p.x += p.vx*dt; p.y += p.vy*dt;
+    p.vy += 130*dt;
+    p.wob += p.wobSpeed*dt;
+    p.x += (p.vx + Math.sin(p.wob)*40)*dt; p.y += p.vy*dt;
     p.rot += p.vr*dt;
   }
   castParticles = castParticles.filter(p => p.life < p.maxLife);
 }
 function drawCastParticles() {
   for (const p of castParticles) {
-    const a = Math.max(0, 1 - p.life/p.maxLife);
+    const t = p.life/p.maxLife;
+    const a = Math.max(0, t < 0.15 ? t/0.15 : 1 - (t-0.15)/0.85);
+    const s = p.size;
     ctx.save();
     ctx.translate(p.x, p.y);
     ctx.rotate(p.rot);
-    ctx.globalAlpha = a * 0.85;
+    ctx.globalAlpha = Math.min(1, a * 1.1);
     ctx.fillStyle = p.color;
+    ctx.shadowColor = p.color;
+    ctx.shadowBlur = 10;
     if (p.shape === 'petal') {
-      ctx.beginPath(); ctx.ellipse(0,0,4,2.4,0,0,Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(0,0,s,s*0.6,0,0,Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(0,0,s*0.4,s*0.24,0,0,Math.PI*2); ctx.fillStyle = '#fff'; ctx.globalAlpha *= 0.6; ctx.fill();
     } else if (p.shape === 'leaf') {
       ctx.beginPath();
-      ctx.moveTo(0,-4); ctx.bezierCurveTo(3,-2,3,2,0,4); ctx.bezierCurveTo(-3,2,-3,-2,0,-4); ctx.fill();
+      ctx.moveTo(0,-s); ctx.bezierCurveTo(s*0.75,-s*0.5,s*0.75,s*0.5,0,s); ctx.bezierCurveTo(-s*0.75,s*0.5,-s*0.75,-s*0.5,0,-s); ctx.fill();
+      ctx.strokeStyle = 'rgba(0,0,0,0.3)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(0,-s); ctx.lineTo(0,s); ctx.stroke();
     } else if (p.shape === 'shard') {
-      ctx.beginPath(); ctx.moveTo(0,-4); ctx.lineTo(3,0); ctx.lineTo(0,4); ctx.lineTo(-3,0); ctx.closePath();
-      ctx.strokeStyle = p.color; ctx.lineWidth = 1.2; ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0,-s); ctx.lineTo(s*0.7,0); ctx.lineTo(0,s); ctx.lineTo(-s*0.7,0); ctx.closePath();
+      ctx.strokeStyle = p.color; ctx.lineWidth = 2.4; ctx.stroke();
+      ctx.globalAlpha *= 0.35; ctx.fill();
     } else if (p.shape === 'spark') {
       ctx.beginPath();
-      ctx.moveTo(0,-4); ctx.lineTo(1,-1); ctx.lineTo(4,0); ctx.lineTo(1,1);
-      ctx.lineTo(0,4); ctx.lineTo(-1,1); ctx.lineTo(-4,0); ctx.lineTo(-1,-1); ctx.closePath();
+      ctx.moveTo(0,-s); ctx.lineTo(s*0.25,-s*0.25); ctx.lineTo(s,0); ctx.lineTo(s*0.25,s*0.25);
+      ctx.lineTo(0,s); ctx.lineTo(-s*0.25,s*0.25); ctx.lineTo(-s,0); ctx.lineTo(-s*0.25,-s*0.25); ctx.closePath();
       ctx.fill();
     }
     ctx.restore();
   }
+  ctx.shadowBlur = 0;
 }
 
 let spaceJustPressed = false;
