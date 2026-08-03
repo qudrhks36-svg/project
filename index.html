@@ -37,6 +37,22 @@
 
   #topbarActions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
   #regionBar { width: 900px; display: flex; gap: 8px; flex-wrap: wrap; }
+  .regionBtn {
+    display: flex; flex-direction: column; align-items: flex-start; gap: 1px;
+    padding: 7px 14px 7px 18px; min-width: 96px; position: relative; overflow: hidden;
+  }
+  .regionBtn .rIcon { font-size: 15px; line-height: 1; }
+  .regionBtn .rName { font-weight: bold; font-size: 13px; line-height: 1.3; }
+  .regionBtn .rSub { font-size: 9.5px; font-weight: normal; color: #93aebd; line-height: 1.2; }
+  .regionBtn.active .rSub { color: #024a63; }
+  .regionBtn::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; transition: width 0.15s; }
+  .regionBtn.active::before { width: 6px; }
+  .regionBtn[data-region="lake"]::before     { background: linear-gradient(#5f9c7f,#1f4a3d); }
+  .regionBtn[data-region="sea"]::before      { background: linear-gradient(#2fb0c9,#0b3a52); }
+  .regionBtn[data-region="pacific"]::before  { background: linear-gradient(#1489b8,#02203f); }
+  .regionBtn[data-region="atlantic"]::before { background: linear-gradient(#1f6f8f,#03192b); }
+  .regionBtn[data-region="jeju"]::before     { background: linear-gradient(#2fd9b8,#0a3d33); }
+  .regionBtn[data-region="eastsea"]::before  { background: linear-gradient(#ff9d5c,#123a66); }
 
   #baitBadge {
     display: none; align-items: center; gap: 4px; align-self: flex-start;
@@ -435,10 +451,12 @@
   <div id="baitBadge">🎣 미끼 효과 2:00</div>
 
   <div id="regionBar">
-    <button class="btn regionBtn active" data-region="lake">🏞️ 호수</button>
-    <button class="btn regionBtn" data-region="sea">🌊 먼바다</button>
-    <button class="btn regionBtn" data-region="pacific">🌐 태평양</button>
-    <button class="btn regionBtn" data-region="atlantic">🗺️ 대서양</button>
+    <button class="btn regionBtn active" data-region="lake"><span class="rIcon">🏞️</span><span class="rName">호수</span><span class="rSub">잔잔한 민물</span></button>
+    <button class="btn regionBtn" data-region="sea"><span class="rIcon">🌊</span><span class="rName">먼바다</span><span class="rSub">근해 연안</span></button>
+    <button class="btn regionBtn" data-region="jeju"><span class="rIcon">🌴</span><span class="rName">제주도</span><span class="rSub">에메랄드빛 남해</span></button>
+    <button class="btn regionBtn" data-region="eastsea"><span class="rIcon">🌅</span><span class="rName">동해</span><span class="rSub">맑고 깊은 물</span></button>
+    <button class="btn regionBtn" data-region="pacific"><span class="rIcon">🌐</span><span class="rName">태평양</span><span class="rSub">대형 원양어</span></button>
+    <button class="btn regionBtn" data-region="atlantic"><span class="rIcon">🗺️</span><span class="rName">대서양</span><span class="rSub">대형 원양어</span></button>
   </div>
 
   <div id="levelBar">
@@ -523,6 +541,8 @@
     <div id="dexTabs">
       <button class="btn active" id="tabLake">호수 (<span id="tabLakeCount">0</span>)</button>
       <button class="btn" id="tabSea">먼바다 (<span id="tabSeaCount">0</span>)</button>
+      <button class="btn" id="tabJeju">제주도 (<span id="tabJejuCount">0</span>)</button>
+      <button class="btn" id="tabEastsea">동해 (<span id="tabEastseaCount">0</span>)</button>
       <button class="btn" id="tabPacific">태평양 (<span id="tabPacificCount">0</span>)</button>
       <button class="btn" id="tabAtlantic">대서양 (<span id="tabAtlanticCount">0</span>)</button>
       <button class="btn" id="tabSpecial">특수 (<span id="tabSpecialCount">0</span>)</button>
@@ -813,6 +833,49 @@ const ATLANTIC_FISH = [
   ["사자갈기해파리","legendary",50,100,"jellyfish","crimson"],
 ];
 
+/* ----- Jeju: warm subtropical coastal ecosystem, volcanic reefs ----- */
+const JEJU_FISH = [
+  ["자리돔","common",8,15,"torpedo","teal"],
+  ["노랑자리돔","common",6,12,"torpedo","gold"],
+  ["세줄얼게비늘","common",10,18,"torpedo","silver"],
+  ["어랭놀래기","common",12,20,"oval","teal"],
+  ["파랑돔","common",6,10,"oval","deepBlue"],
+  ["오분자기","common",3,6,"shell","olive"],
+  ["혹돔","uncommon",30,60,"oval","crimson"],
+  ["쏨뱅이","uncommon",15,28,"spiny","charcoal","spots"],
+  ["붉벤자리","uncommon",15,25,"oval","crimson","stripesV"],
+  ["보말고둥","uncommon",3,6,"shell","sand"],
+  ["갯가재","uncommon",8,14,"shrimp","olive"],
+  ["갯장어","rare",50,100,"slender","ink"],
+  ["무늬바리","rare",35,65,"oval","charcoal","spots"],
+  ["은비늘치","rare",20,35,"torpedo","silver"],
+  ["긴꼬리벵에돔","rare",30,55,"oval","charcoal"],
+  ["대왕바리","legendary",80,150,"oval","charcoal","spots"],
+  ["황금갈치","legendary",60,110,"slender","gold"],
+  ["제주보름달해파리","legendary",20,40,"jellyfish","olive"],
+];
+
+/* ----- East Sea (동해): cold, clear, deep waters off Korea's eastern coast ----- */
+const EASTSEA_FISH = [
+  ["살오징어","common",20,35,"squid","silver"],
+  ["꽁치","common",20,35,"slender","bluesteel"],
+  ["도치(뚝지)","common",20,35,"oval","charcoal","spots"],
+  ["손꽁치","common",15,25,"slender","silver"],
+  ["횟대","common",15,28,"spiny","olive","spots"],
+  ["이면수","uncommon",25,45,"torpedo","olive","backwave"],
+  ["참가자미","uncommon",20,35,"flat","sand"],
+  ["줄가자미","uncommon",25,40,"flat","sand","stripesV"],
+  ["벚꽃새우","uncommon",4,7,"shrimp","rose"],
+  ["털게","uncommon",10,18,"crab","sand"],
+  ["명태","rare",30,60,"torpedo","silver","lateral"],
+  ["대문어","rare",50,100,"squid","charcoal"],
+  ["곰치","rare",60,120,"slender","ink"],
+  ["홍게","rare",15,25,"crab","crimson"],
+  ["은어대구","legendary",70,130,"torpedo","deepBlue","spots"],
+  ["대왕문어","legendary",120,200,"squid","ink"],
+  ["동해푸른해파리","legendary",25,50,"jellyfish","deepBlue"],
+];
+
 /* ----- Special mega fish: unique catching mechanics, ocean regions only, rare encounter ----- */
 const BOSS_FISH = [
   ["참다랑어","boss",150,300,"torpedo","deepBlue","lateral"],
@@ -854,6 +917,8 @@ const BOSS_CHANCE_BASE = 0.045;
 const REGIONS = {
   lake:     { label:"호수",   icon:"🏞️", fishArr: LAKE_FISH,     ocean:false },
   sea:      { label:"먼바다", icon:"🌊", fishArr: SEA_FISH,      ocean:true  },
+  jeju:     { label:"제주도", icon:"🌴", fishArr: JEJU_FISH,     ocean:true  },
+  eastsea:  { label:"동해",   icon:"🌅", fishArr: EASTSEA_FISH,  ocean:true  },
   pacific:  { label:"태평양", icon:"🌐", fishArr: PACIFIC_FISH,  ocean:true  },
   atlantic: { label:"대서양", icon:"🗺️", fishArr: ATLANTIC_FISH, ocean:true  },
 };
@@ -862,6 +927,8 @@ const REGIONS = {
 const DEX_REWARD_REGIONS = [
   { id:'lake',     label:'호수',      arr:LAKE_FISH,     reward:300 },
   { id:'sea',      label:'먼바다',    arr:SEA_FISH,      reward:400 },
+  { id:'jeju',     label:'제주도',    arr:JEJU_FISH,     reward:450 },
+  { id:'eastsea',  label:'동해',      arr:EASTSEA_FISH,  reward:450 },
   { id:'pacific',  label:'태평양',    arr:PACIFIC_FISH,  reward:500 },
   { id:'atlantic', label:'대서양',    arr:ATLANTIC_FISH, reward:500 },
   { id:'special',  label:'특수 어종', arr:BOSS_FISH,     reward:800 },
@@ -1599,6 +1666,38 @@ const OCEAN_THEMES = {
     water:[[0,'#1f6f8f'],[0.3,'#155672'],[0.65,'#0b3a52'],[1,'#03192b']],
     fishScale:38, sparkleSeed:17, bigFish:true,
   },
+  jeju: {
+    sky:[[0,'#2ec2d6'],[0.45,'#7fe3d8'],[0.78,'#e3f7e0'],[1,'#fff6d8']],
+    sunX:W-150, sunY:48, sunGlow:'rgba(255,252,224,1)', sunCore:'#fffce0',
+    water:[[0,'#2fd9b8'],[0.28,'#17b39a'],[0.62,'#0d7f8a'],[1,'#053448']],
+    fishScale:36, sparkleSeed:23, bigFish:true,
+    landmark(t) {
+      // Hallasan silhouette + basalt sea stacks (주상절리), Jeju's volcanic coast
+      ctx.save();
+      ctx.globalAlpha = 0.5;
+      ctx.fillStyle = '#2b4a4a';
+      ctx.beginPath();
+      ctx.moveTo(260,HORIZON); ctx.lineTo(330,HORIZON-58); ctx.lineTo(410,HORIZON-30);
+      ctx.lineTo(470,HORIZON-72); ctx.lineTo(540,HORIZON-24); ctx.lineTo(600,HORIZON-44);
+      ctx.lineTo(650,HORIZON); ctx.closePath(); ctx.fill();
+      ctx.restore();
+      ctx.save();
+      ctx.globalAlpha = 0.75;
+      ctx.fillStyle = '#1a2b2b';
+      for (const [rx,rw,rh] of [[60,14,64],[92,10,44],[790,16,72],[826,9,40]]) {
+        ctx.beginPath();
+        ctx.moveTo(rx, H-30); ctx.lineTo(rx+rw*0.3, HORIZON+rh); ctx.lineTo(rx+rw*0.7, HORIZON+rh-6); ctx.lineTo(rx+rw, H-30);
+        ctx.closePath(); ctx.fill();
+      }
+      ctx.restore();
+    },
+  },
+  eastsea: {
+    sky:[[0,'#3a6bd8'],[0.35,'#e88a5c'],[0.62,'#ffd9a0'],[0.85,'#fff0d2'],[1,'#fff8e8']],
+    sunX:W/2+40, sunY:HORIZON-38, sunGlow:'rgba(255,214,150,1)', sunCore:'#fff2c8',
+    water:[[0,'#1b4fa0'],[0.3,'#123f82'],[0.65,'#0a2a5c'],[1,'#020f2c']],
+    fishScale:38, sparkleSeed:31, bigFish:true,
+  },
 };
 
 function drawBackgroundOcean(t, theme) {
@@ -1623,6 +1722,8 @@ function drawBackgroundOcean(t, theme) {
   theme.water.forEach(([pos,color]) => water.addColorStop(pos,color));
   ctx.fillStyle = water; ctx.fillRect(0,HORIZON,W,H-HORIZON);
 
+  if (theme.landmark) theme.landmark(t);
+
   fishSilhouette(230 + Math.sin(t*0.3)*40, HORIZON+120, theme.fishScale, 1);
   fishSilhouette(650 + Math.sin(t*0.22+2)*60, HORIZON+200, theme.fishScale*0.76, -1);
   if (theme.bigFish) fishSilhouette(460 + Math.sin(t*0.15+1)*90, HORIZON+300, theme.fishScale*1.7, 1);
@@ -1642,6 +1743,8 @@ function drawBackgroundOcean(t, theme) {
 }
 
 function drawBackgroundSea(t) { drawBackgroundOcean(t, OCEAN_THEMES.sea); }
+function drawBackgroundJeju(t) { drawBackgroundOcean(t, OCEAN_THEMES.jeju); }
+function drawBackgroundEastsea(t) { drawBackgroundOcean(t, OCEAN_THEMES.eastsea); }
 function drawBackgroundPacific(t) { drawBackgroundOcean(t, OCEAN_THEMES.pacific); }
 function drawBackgroundAtlantic(t) { drawBackgroundOcean(t, OCEAN_THEMES.atlantic); }
 
@@ -1749,6 +1852,8 @@ function drawBackground(now) {
   const t = now/1000;
   if (spot === 'lake') drawBackgroundLake(t);
   else if (spot === 'sea') drawBackgroundSea(t);
+  else if (spot === 'jeju') drawBackgroundJeju(t);
+  else if (spot === 'eastsea') drawBackgroundEastsea(t);
   else if (spot === 'pacific') drawBackgroundPacific(t);
   else if (spot === 'atlantic') drawBackgroundAtlantic(t);
   drawWaterTexture(t);
@@ -2368,7 +2473,7 @@ function dexFishImage(def, locked) {
   return cnv.toDataURL();
 }
 
-const DEX_TAB_SRC = { lake:LAKE_FISH, sea:SEA_FISH, pacific:PACIFIC_FISH, atlantic:ATLANTIC_FISH, special:BOSS_FISH };
+const DEX_TAB_SRC = { lake:LAKE_FISH, sea:SEA_FISH, jeju:JEJU_FISH, eastsea:EASTSEA_FISH, pacific:PACIFIC_FISH, atlantic:ATLANTIC_FISH, special:BOSS_FISH };
 let dexTab = 'lake';
 function renderDex() {
   updateDexTabBadges();
@@ -2392,7 +2497,7 @@ function renderDex() {
 
 document.getElementById('dexBtn').addEventListener('click', () => { document.getElementById('dexOverlay').style.display='flex'; renderDex(); });
 document.getElementById('dexClose').addEventListener('click', () => { document.getElementById('dexOverlay').style.display='none'; });
-const DEX_TAB_IDS = { lake:'tabLake', sea:'tabSea', pacific:'tabPacific', atlantic:'tabAtlantic', special:'tabSpecial' };
+const DEX_TAB_IDS = { lake:'tabLake', sea:'tabSea', jeju:'tabJeju', eastsea:'tabEastsea', pacific:'tabPacific', atlantic:'tabAtlantic', special:'tabSpecial' };
 function activateTab(tab) {
   dexTab = tab;
   Object.entries(DEX_TAB_IDS).forEach(([key,id]) => document.getElementById(id).classList.toggle('active', key===tab));
@@ -2766,7 +2871,7 @@ function computeStatsSnapshot() {
   const hasAtlantic = entries.some(([,e]) => e.habitat === 'atlantic');
   return {
     totalCatches, dexCount: entries.length,
-    dexTotal: LAKE_FISH.length + SEA_FISH.length + PACIFIC_FISH.length + ATLANTIC_FISH.length + BOSS_FISH.length,
+    dexTotal: LAKE_FISH.length + SEA_FISH.length + JEJU_FISH.length + EASTSEA_FISH.length + PACIFIC_FISH.length + ATLANTIC_FISH.length + BOSS_FISH.length,
     bossCatches, hasPacific, hasAtlantic,
     trophyCatches: economy.trophyCatches || 0,
     level: playerLevel(),
@@ -2878,11 +2983,13 @@ if (!localStorage.getItem('fishingTutorialSeenV1')) openTutorial();
 
 document.getElementById('tabLakeCount').textContent = LAKE_FISH.length;
 document.getElementById('tabSeaCount').textContent = SEA_FISH.length;
+document.getElementById('tabJejuCount').textContent = JEJU_FISH.length;
+document.getElementById('tabEastseaCount').textContent = EASTSEA_FISH.length;
 document.getElementById('tabPacificCount').textContent = PACIFIC_FISH.length;
 document.getElementById('tabAtlanticCount').textContent = ATLANTIC_FISH.length;
 document.getElementById('tabSpecialCount').textContent = BOSS_FISH.length;
 document.getElementById('dexTotalCount').textContent =
-  LAKE_FISH.length + SEA_FISH.length + PACIFIC_FISH.length + ATLANTIC_FISH.length + BOSS_FISH.length;
+  LAKE_FISH.length + SEA_FISH.length + JEJU_FISH.length + EASTSEA_FISH.length + PACIFIC_FISH.length + ATLANTIC_FISH.length + BOSS_FISH.length;
 
 document.getElementById('syncBtn').addEventListener('click', () => {
   document.getElementById('syncOverlay').style.display = 'flex';
