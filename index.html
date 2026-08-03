@@ -195,6 +195,11 @@
     font-size: 11px; font-weight: 900; padding: 2px 10px; border-radius: 10px; margin: 0 3px 4px;
     letter-spacing: 1px; box-shadow: 0 0 10px rgba(255,193,7,0.7);
   }
+  #insuranceTag {
+    display: none; background: linear-gradient(135deg,#4fc3f7,#0277bd); color: #fff;
+    font-size: 11px; font-weight: 900; padding: 2px 10px; border-radius: 10px; margin: 0 3px 4px;
+    letter-spacing: 1px; box-shadow: 0 0 10px rgba(79,195,247,0.7);
+  }
   #failCard {
     width: 60%; margin-bottom: 22px; background: rgba(30,10,10,0.75); border-radius: 16px;
     padding: 14px 20px; color: #ffb3ab; text-align: center; border: 1px solid rgba(255,90,90,0.35);
@@ -482,6 +487,7 @@
       <div id="catchCard">
         <div id="newTag" class="newTag" style="display:none;">NEW!</div>
         <div id="trophyTag">★ 대물 ★</div>
+        <div id="insuranceTag">🛡️ 보험 발동</div>
         <div class="stars" id="popStars">★★★☆☆</div>
         <h2 id="popName">이름</h2>
         <div class="sizeRow" id="popSize">32.4cm</div>
@@ -559,8 +565,9 @@
       <button class="btn active" id="shopTabSell">🐟 판매</button>
       <button class="btn" id="shopTabReel">🎣 릴</button>
       <button class="btn" id="shopTabRod">🎋 낚싯대</button>
+      <button class="btn" id="shopTabSkin">🎨 스킨</button>
       <button class="btn" id="shopTabBait">🪱 미끼</button>
-      <button class="btn" id="shopTabBooster">✨ 부스터</button>
+      <button class="btn" id="shopTabBooster">🎒 소모품</button>
       <div id="shopCredits">💰 <span id="shopCreditsNum">0</span> 크레딧</div>
     </div>
     <div id="shopGrid"></div>
@@ -1116,16 +1123,27 @@ const BAIT_TYPES = {
   trophy: { name:'대물 미끼',  icon:'📏', unitPrice:35,  bundlePrice:280, bundleSize:10, desc:'장착 중 캐스팅마다 1개 소모 · 대물 판정 확률 대폭 상승' },
 };
 
-/* ----- Booster: consumed on the next successful catch, boosts that catch's score ----- */
+/* ----- Consumables: boosters/insurance, count-based, auto-applied (no equip step) ----- */
 const BOOSTER_TYPES = {
-  exp: { name:'경험치 부스터', icon:'✨', unitPrice:45, bundlePrice:360, bundleSize:10, desc:'보유 중 다음 포획 1회의 획득 점수 +50%' },
+  exp:       { name:'경험치 부스터', icon:'✨', unitPrice:45, bundlePrice:360, bundleSize:10, desc:'보유 중 다음 포획 1회의 획득 점수 +50%' },
+  insurance: { name:'보험권',       icon:'🛡️', unitPrice:80, bundlePrice:640, bundleSize:10, desc:'물고기를 놓치거나 줄이 끊어질 때 자동으로 1개 소모되어 포획을 지켜줌' },
 };
+
+/* ----- Cosmetic rig skins: purely visual (rod + reel colors), no gameplay effect ----- */
+const SKIN_TIERS = [
+  { id:'classic', name:'클래식 우드', icon:'🟤', price:0,   rod:['#3a2a1a','#7a5a34'], reel:['#565f66','#20262b'], spool:['#c9d3d8','#7c8890'] },
+  { id:'navy',    name:'네이비 카본', icon:'🔵', price:400, rod:['#0d1b2a','#3a5a78'], reel:['#1c2933','#0a1116'], spool:['#7fd0ff','#2b6f9e'] },
+  { id:'gold',    name:'골드 프로',   icon:'🟡', price:800, rod:['#7a5a0a','#f2d585'], reel:['#8a6a1a','#3a2a05'], spool:['#ffe9a8','#c9962c'] },
+  { id:'sakura',  name:'벚꽃 핑크',   icon:'🌸', price:600, rod:['#7a2f45','#f2a8c0'], reel:['#5c2233','#2a0f18'], spool:['#ffd6e3','#e08aa8'] },
+  { id:'emerald', name:'에메랄드',    icon:'🟢', price:600, rod:['#0a3d33','#2fd9b8'], reel:['#123a30','#04150f'], spool:['#8fe8d5','#1a9b80'] },
+];
 
 function defaultEconomy() {
   return {
     credits:0, reels:['basic'], rods:['basic'], equippedReel:'basic', equippedRod:'basic',
     baits:{ basic:0, boss:0, trophy:0 }, equippedBait:null,
-    boosters:{ exp:0 },
+    boosters:{ exp:0, insurance:0 },
+    skins:['classic'], equippedSkin:'classic',
     stock:{}, trophyCatches:0, unlockedAchievements:[],
     dailyDate:null, dailyQuestIds:[], dailyProgress:{}, dailyClaimed:[], loginStreak:0,
     dexRewardsClaimed:[], nickname:'',
@@ -1137,13 +1155,28 @@ if (!economy.baits) economy.baits = { basic:0, boss:0, trophy:0 };
 if (economy.baitCount) { economy.baits.basic = (economy.baits.basic||0) + economy.baitCount; economy.baitCount = 0; }
 if (economy.equippedBait === undefined) economy.equippedBait = economy.activeBaitType || null;
 delete economy.activeBaitType; delete economy.baitActiveUntil;
-if (!economy.boosters) economy.boosters = { exp:0 };
+if (!economy.boosters) economy.boosters = { exp:0, insurance:0 };
+if (economy.boosters.insurance === undefined) economy.boosters.insurance = 0;
+if (!economy.skins) economy.skins = ['classic'];
+if (!economy.equippedSkin) economy.equippedSkin = 'classic';
 if (!economy.stock) economy.stock = {};
 if (!economy.dexRewardsClaimed) economy.dexRewardsClaimed = [];
 if (economy.nickname == null) economy.nickname = '';
 function saveEconomy() { localStorage.setItem('fishingEconomyV1', JSON.stringify(economy)); }
 function reelTierById(id) { return REEL_TIERS.find(r => r.id === id) || REEL_TIERS[0]; }
 function rodTierById(id) { return ROD_TIERS.find(r => r.id === id) || ROD_TIERS[0]; }
+function skinTierById(id) { return SKIN_TIERS.find(s => s.id === id) || SKIN_TIERS[0]; }
+function applySkin() {
+  const skin = skinTierById(economy.equippedSkin);
+  const setStops = (gradId, colors) => {
+    const stops = document.querySelectorAll(`#${gradId} stop`);
+    if (stops[0]) stops[0].setAttribute('stop-color', colors[0]);
+    if (stops[1]) stops[1].setAttribute('stop-color', colors[1]);
+  };
+  setStops('rodBlank', skin.rod);
+  setStops('reelBody', skin.reel);
+  setStops('spoolGrad', skin.spool);
+}
 function equipmentBuffs() {
   return {
     tensionMul: 1 - reelTierById(economy.equippedReel).tensionCut,
@@ -1374,13 +1407,14 @@ function beginReeling() {
   setMsg(isBoss ? "필사적으로 버텨라!!" : "타이밍 맞춰 탭! 릴을 감으세요");
 }
 
-function catchSuccess() {
+function catchSuccess(insured) {
   const isBoss = currentFish.rarity === 'boss';
   const conf = RARITY[currentFish.rarity];
-  const size = (currentFish.minLen + Math.random()*(currentFish.maxLen-currentFish.minLen)).toFixed(1);
+  const size = insured ? currentFish.minLen.toFixed(1)
+    : (currentFish.minLen + Math.random()*(currentFish.maxLen-currentFish.minLen)).toFixed(1);
   const sizeRatio = (size-currentFish.minLen)/(currentFish.maxLen-currentFish.minLen+0.001);
   const trophyThreshold = castBaitType === 'trophy' ? 0.65 : 0.85;
-  const isTrophy = !isBoss && sizeRatio >= trophyThreshold;
+  const isTrophy = !insured && !isBoss && sizeRatio >= trophyThreshold;
   let points = Math.round(conf.points * (0.7 + 0.6*sizeRatio));
   if (isTrophy) points = Math.round(points * 1.5);
   if (envState.weather === 'fog') points = Math.round(points * 1.15);
@@ -1402,7 +1436,7 @@ function catchSuccess() {
   saveEconomy(); queueSyncPush();
   const sellValue = fishSellPrice(currentFish.name);
 
-  resultData = { ok:true, name:currentFish.name, rarity:currentFish.rarity, size, points, sellValue, isNew, isTrophy, isBoss, isBoosted };
+  resultData = { ok:true, name:currentFish.name, rarity:currentFish.rarity, size, points, sellValue, isNew, isTrophy, isBoss, isBoosted, isInsured: !!insured };
   showCatchReveal(resultData);
   SFX.catchSuccess(isBoss);
   state = 'result'; resultTimer = isBoss ? 3.4 : 2.6;
@@ -1416,6 +1450,13 @@ function catchSuccess() {
 }
 
 function catchFail(reason) {
+  if ((reason === 'snapped' || reason === 'escaped') && (economy.boosters.insurance || 0) > 0) {
+    economy.boosters.insurance -= 1;
+    saveEconomy(); updateTopStats(); queueSyncPush();
+    setMsg('🛡️ 보험권 발동! 놓치지 않았습니다');
+    catchSuccess(true);
+    return;
+  }
   resultData = { ok:false, reason };
   state = 'result'; resultTimer = 1.4;
   const text = reason === 'snapped' ? "줄이 끊어졌습니다!" : reason === 'escaped' ? "괴물이 사라졌다..." : "놓쳤습니다...";
@@ -1432,6 +1473,7 @@ function showCatchReveal(d) {
   card.classList.toggle('bossCard', !!d.isBoss);
   document.getElementById('newTag').style.display = d.isNew ? 'inline-block' : 'none';
   document.getElementById('trophyTag').style.display = d.isTrophy ? 'inline-block' : 'none';
+  document.getElementById('insuranceTag').style.display = d.isInsured ? 'inline-block' : 'none';
   document.getElementById('popStars').textContent = starsStr(RARITY[d.rarity].stars);
   document.getElementById('popStars').style.color = RARITY[d.rarity].color;
   document.getElementById('popName').textContent = (d.isBoss ? '🌊 ' : '') + d.name;
@@ -2704,6 +2746,41 @@ function renderShop() {
     return;
   }
 
+  if (shopTab === 'skin') {
+    for (const skin of SKIN_TIERS) {
+      const has = economy.skins.includes(skin.id);
+      const isEquipped = economy.equippedSkin === skin.id;
+      const card = document.createElement('div');
+      card.className = 'shopCard' + (isEquipped ? ' equipped' : '');
+      card.innerHTML = `
+        <div class="icon">${skin.icon}</div>
+        <div class="name">${skin.name}</div>
+        <div class="effect">코스메틱 · 성능 효과 없음</div>
+        <div class="price">${skin.price === 0 ? '기본 보유' : skin.price + ' 크레딧'}</div>
+      `;
+      const btn = document.createElement('button');
+      if (isEquipped) { btn.textContent = '장착중'; btn.disabled = true; }
+      else if (has) { btn.textContent = '장착하기'; btn.disabled = false; }
+      else { btn.textContent = '구매'; btn.disabled = economy.credits < skin.price; }
+      btn.addEventListener('click', () => {
+        if (has) {
+          economy.equippedSkin = skin.id;
+          saveEconomy(); renderShop(); queueSyncPush(); applySkin();
+          setShopStatus(`${skin.name} 스킨을 장착했어요.`);
+        } else {
+          if (economy.credits < skin.price) { setShopStatus('크레딧이 부족해요.'); return; }
+          economy.credits -= skin.price;
+          economy.skins.push(skin.id); economy.equippedSkin = skin.id;
+          saveEconomy(); updateTopStats(); renderShop(); queueSyncPush(); applySkin();
+          setShopStatus(`${skin.name} 스킨을 구매했어요.`);
+        }
+      });
+      card.appendChild(btn);
+      grid.appendChild(card);
+    }
+    return;
+  }
+
   const isReel = shopTab === 'reel';
   const tiers = isReel ? REEL_TIERS : ROD_TIERS;
   const owned = isReel ? economy.reels : economy.rods;
@@ -2751,6 +2828,7 @@ function activateShopTab(tab) {
   document.getElementById('shopTabSell').classList.toggle('active', tab==='sell');
   document.getElementById('shopTabReel').classList.toggle('active', tab==='reel');
   document.getElementById('shopTabRod').classList.toggle('active', tab==='rod');
+  document.getElementById('shopTabSkin').classList.toggle('active', tab==='skin');
   document.getElementById('shopTabBait').classList.toggle('active', tab==='bait');
   document.getElementById('shopTabBooster').classList.toggle('active', tab==='booster');
   setShopStatus('');
@@ -2759,6 +2837,7 @@ function activateShopTab(tab) {
 document.getElementById('shopTabSell').addEventListener('click', () => activateShopTab('sell'));
 document.getElementById('shopTabReel').addEventListener('click', () => activateShopTab('reel'));
 document.getElementById('shopTabRod').addEventListener('click', () => activateShopTab('rod'));
+document.getElementById('shopTabSkin').addEventListener('click', () => activateShopTab('skin'));
 document.getElementById('shopTabBait').addEventListener('click', () => activateShopTab('bait'));
 document.getElementById('shopTabBooster').addEventListener('click', () => activateShopTab('booster'));
 document.getElementById('shopBtn').addEventListener('click', () => {
@@ -3127,6 +3206,7 @@ updateTopStats();
 ensureDailyReset();
 checkAchievements();
 checkDexCompletion();
+applySkin();
 tickEnvState();
 setInterval(tickEnvState, 60*1000);
 ensureSyncCode();
