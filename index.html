@@ -634,11 +634,18 @@
 ========================================================= */
 function applyResponsiveScale() {
   const wrap = document.getElementById('wrap');
-  const scale = Math.max(0.4, Math.min(1, (window.innerWidth - 16) / 900));
+  wrap.style.transform = '';
+  const rect = wrap.getBoundingClientRect();
+  const naturalW = rect.width || 900;
+  const naturalH = rect.height || 780;
+  const scaleW = (window.innerWidth - 16) / naturalW;
+  const scaleH = (window.innerHeight - 16) / naturalH;
+  const scale = Math.max(0.4, Math.min(1, scaleW, scaleH));
   wrap.style.transform = scale < 0.999 ? `scale(${scale})` : '';
 }
 window.addEventListener('resize', applyResponsiveScale);
 applyResponsiveScale();
+setTimeout(applyResponsiveScale, 200);
 
 /* =========================================================
    Fish database: [name, rarity, minLen, maxLen, bodyType, colorKey, pattern?, whiskers?]
