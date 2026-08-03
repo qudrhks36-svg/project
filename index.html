@@ -526,6 +526,7 @@
       </g>
       <path d="M20 320 C10 270,20 230,55 210 L70 230 C48 250,44 280,50 320 Z" fill="#caa06a" stroke="#5c4626" stroke-width="2"/>
       <path d="M100 320 C95 280,100 245,120 220 L134 236 C118 256,116 285,120 320 Z" fill="#e8b57a" stroke="#5c4626" stroke-width="2"/>
+      <g id="skinDeco"></g>
     </svg>
   </div>
 
@@ -911,7 +912,7 @@ const RARITY = {
   uncommon:  { label:"UNCOMMON",  color:"#4fc3f7", stars:2, points:36,  hookWindow:0.58, zoneWidthRatio:0.23, needleSpeed:1.55, tensionRate:9.8,  gain:10.5 },
   rare:      { label:"RARE",      color:"#ba68c8", stars:3, points:95,  hookWindow:0.50, zoneWidthRatio:0.19, needleSpeed:1.75, tensionRate:10.3, gain:9.5 },
   legendary: { label:"LEGENDARY", color:"#ffd54f", stars:5, points:300, hookWindow:0.44, zoneWidthRatio:0.17, needleSpeed:1.85, tensionRate:10.0, gain:9.5 },
-  boss:      { label:"BOSS",      color:"#ff3d3d", stars:5, points:900, hookWindow:0.32, zoneWidthRatio:0.10, needleSpeed:2.25, tensionRate:10.5, gain:8.0 },
+  boss:      { label:"BOSS",      color:"#ff3d3d", stars:5, points:900, hookWindow:0.70, zoneWidthRatio:0.10, needleSpeed:2.25, tensionRate:10.5, gain:8.0 },
 };
 const RARITY_WEIGHT = { common:50, uncommon:28, rare:15, legendary:7 };
 const BOSS_CHANCE_BASE = 0.045;
@@ -1123,13 +1124,51 @@ const BOOSTER_TYPES = {
   insurance: { name:'보험권',       icon:'🛡️', unitPrice:80, bundlePrice:640, bundleSize:10, desc:'물고기를 놓치거나 줄이 끊어질 때 자동 소모되어 도망가지 못하게 막고 처음부터 다시 도전하게 해줌' },
 };
 
-/* ----- Cosmetic rig skins: purely visual (rod + reel colors), no gameplay effect ----- */
+/* ----- Cosmetic rig skins: rod/reel colors + decorative SVG motifs + a cast particle effect ----- */
+const SAKURA_DECO = `
+  <g transform="translate(78,248)">
+    <circle cx="0" cy="-4.5" r="3.4" fill="#f7b8cf"/><circle cx="4.3" cy="-1.4" r="3.4" fill="#f7b8cf"/>
+    <circle cx="2.6" cy="3.6" r="3.4" fill="#f7b8cf"/><circle cx="-2.6" cy="3.6" r="3.4" fill="#f7b8cf"/>
+    <circle cx="-4.3" cy="-1.4" r="3.4" fill="#f7b8cf"/><circle cx="0" cy="0" r="1.8" fill="#ffe3ec"/>
+  </g>
+  <g transform="translate(178,100) scale(0.8)">
+    <circle cx="0" cy="-4.5" r="3.4" fill="#f7b8cf"/><circle cx="4.3" cy="-1.4" r="3.4" fill="#f7b8cf"/>
+    <circle cx="2.6" cy="3.6" r="3.4" fill="#f7b8cf"/><circle cx="-2.6" cy="3.6" r="3.4" fill="#f7b8cf"/>
+    <circle cx="-4.3" cy="-1.4" r="3.4" fill="#f7b8cf"/><circle cx="0" cy="0" r="1.8" fill="#ffe3ec"/>
+  </g>
+  <ellipse cx="120" cy="180" rx="3.2" ry="1.8" fill="#f7b8cf" transform="rotate(30 120 180)"/>
+  <ellipse cx="150" cy="140" rx="2.6" ry="1.5" fill="#f7b8cf" transform="rotate(-20 150 140)"/>
+`;
+const NAVY_DECO = `
+  <path d="M78,242 L83,248 L78,254 L73,248 Z" fill="none" stroke="#9fe0ff" stroke-width="1.4"/>
+  <path d="M135,164 L140,170 L135,176 L130,170 Z" fill="none" stroke="#9fe0ff" stroke-width="1.4"/>
+  <path d="M188,90 L192,95 L188,100 L184,95 Z" fill="none" stroke="#9fe0ff" stroke-width="1.4"/>
+`;
+const EMERALD_DECO = `
+  <path d="M78,242 C83,238 83,250 78,254 C73,250 73,238 78,242 Z" fill="#5fe0b0" stroke="#1a6b52" stroke-width="0.6"/>
+  <path d="M135,164 C140,160 140,172 135,176 C130,172 130,160 135,164 Z" fill="#5fe0b0" stroke="#1a6b52" stroke-width="0.6"/>
+  <path d="M188,90 C192,86 192,98 188,102 C184,98 184,86 188,90 Z" fill="#5fe0b0" stroke="#1a6b52" stroke-width="0.6"/>
+`;
+const GOLD_DECO = `
+  <path d="M78,242 L80.8,245.2 L86,248 L80.8,250.8 L78,256 L75.2,250.8 L70,248 L75.2,245.2 Z" fill="#fff3c4"/>
+  <path d="M188,90 L190,92.5 L194,94 L190,95.5 L188,100 L186,95.5 L182,94 L186,92.5 Z" fill="#fff3c4"/>
+  <path d="M135,164 L136.6,166.2 L140,168 L136.6,169.8 L135,174 L133.4,169.8 L130,168 L133.4,166.2 Z" fill="#fff3c4"/>
+`;
 const SKIN_TIERS = [
-  { id:'classic', name:'클래식 우드', icon:'🟤', price:0,    rod:['#3a2a1a','#7a5a34'], reel:['#565f66','#20262b'], spool:['#c9d3d8','#7c8890'] },
-  { id:'navy',    name:'네이비 카본', icon:'🔵', price:800,  rod:['#0d1b2a','#3a5a78'], reel:['#1c2933','#0a1116'], spool:['#7fd0ff','#2b6f9e'] },
-  { id:'sakura',  name:'벚꽃 핑크',   icon:'🌸', price:900,  rod:['#7a2f45','#f2a8c0'], reel:['#5c2233','#2a0f18'], spool:['#ffd6e3','#e08aa8'] },
-  { id:'emerald', name:'에메랄드',    icon:'🟢', price:1000, rod:['#0a3d33','#2fd9b8'], reel:['#123a30','#04150f'], spool:['#8fe8d5','#1a9b80'] },
-  { id:'gold',    name:'골드 프로',   icon:'🟡', price:1200, rod:['#7a5a0a','#f2d585'], reel:['#8a6a1a','#3a2a05'], spool:['#ffe9a8','#c9962c'] },
+  { id:'classic', name:'클래식 우드', icon:'🟤', price:0,
+    rod:['#3a2a1a','#7a5a34'], reel:['#565f66','#20262b'], spool:['#c9d3d8','#7c8890'], deco:'', castEffect:null },
+  { id:'navy',    name:'네이비 카본', icon:'🔵', price:800,
+    rod:['#0d1b2a','#3a5a78'], reel:['#1c2933','#0a1116'], spool:['#7fd0ff','#2b6f9e'], deco:NAVY_DECO,
+    castEffect:{ shape:'shard', color:'#9fe0ff' } },
+  { id:'sakura',  name:'벚꽃 핑크',   icon:'🌸', price:900,
+    rod:['#7a2f45','#f2a8c0'], reel:['#5c2233','#2a0f18'], spool:['#ffd6e3','#e08aa8'], deco:SAKURA_DECO,
+    castEffect:{ shape:'petal', color:'#f7b8cf' } },
+  { id:'emerald', name:'에메랄드',    icon:'🟢', price:1000,
+    rod:['#0a3d33','#2fd9b8'], reel:['#123a30','#04150f'], spool:['#8fe8d5','#1a9b80'], deco:EMERALD_DECO,
+    castEffect:{ shape:'leaf', color:'#5fe0b0' } },
+  { id:'gold',    name:'골드 프로',   icon:'🟡', price:1200,
+    rod:['#7a5a0a','#f2d585'], reel:['#8a6a1a','#3a2a05'], spool:['#ffe9a8','#c9962c'], deco:GOLD_DECO,
+    castEffect:{ shape:'spark', color:'#fff3c4' } },
 ];
 
 function defaultEconomy() {
@@ -1170,6 +1209,8 @@ function applySkin() {
   setStops('rodBlank', skin.rod);
   setStops('reelBody', skin.reel);
   setStops('spoolGrad', skin.spool);
+  const deco = document.getElementById('skinDeco');
+  if (deco) deco.innerHTML = skin.deco || '';
 }
 function equipmentBuffs() {
   return {
@@ -1278,6 +1319,57 @@ function usesMashFinisher(rarity) { return rarity === 'legendary' || rarity === 
 let resultData = null;
 let ripples = [];
 
+/* ----- Cast particles: small skin-specific flourish spawned when a rod skin has castEffect ----- */
+let castParticles = [];
+function spawnCastEffect() {
+  const skin = skinTierById(economy.equippedSkin);
+  if (!skin.castEffect) return;
+  for (let i=0;i<12;i++) {
+    castParticles.push({
+      shape: skin.castEffect.shape, color: skin.castEffect.color,
+      x: rod.tipX + (Math.random()-0.5)*16, y: rod.tipY + (Math.random()-0.5)*16,
+      vx: (Math.random()-0.5)*70 - 20, vy: -60 - Math.random()*50,
+      rot: Math.random()*Math.PI*2, vr: (Math.random()-0.5)*5,
+      life: 0, maxLife: 0.7 + Math.random()*0.5,
+    });
+  }
+}
+function updateCastParticles(dt) {
+  if (!castParticles.length) return;
+  for (const p of castParticles) {
+    p.life += dt;
+    p.vy += 90*dt;
+    p.x += p.vx*dt; p.y += p.vy*dt;
+    p.rot += p.vr*dt;
+  }
+  castParticles = castParticles.filter(p => p.life < p.maxLife);
+}
+function drawCastParticles() {
+  for (const p of castParticles) {
+    const a = Math.max(0, 1 - p.life/p.maxLife);
+    ctx.save();
+    ctx.translate(p.x, p.y);
+    ctx.rotate(p.rot);
+    ctx.globalAlpha = a * 0.85;
+    ctx.fillStyle = p.color;
+    if (p.shape === 'petal') {
+      ctx.beginPath(); ctx.ellipse(0,0,4,2.4,0,0,Math.PI*2); ctx.fill();
+    } else if (p.shape === 'leaf') {
+      ctx.beginPath();
+      ctx.moveTo(0,-4); ctx.bezierCurveTo(3,-2,3,2,0,4); ctx.bezierCurveTo(-3,2,-3,-2,0,-4); ctx.fill();
+    } else if (p.shape === 'shard') {
+      ctx.beginPath(); ctx.moveTo(0,-4); ctx.lineTo(3,0); ctx.lineTo(0,4); ctx.lineTo(-3,0); ctx.closePath();
+      ctx.strokeStyle = p.color; ctx.lineWidth = 1.2; ctx.stroke();
+    } else if (p.shape === 'spark') {
+      ctx.beginPath();
+      ctx.moveTo(0,-4); ctx.lineTo(1,-1); ctx.lineTo(4,0); ctx.lineTo(1,1);
+      ctx.lineTo(0,4); ctx.lineTo(-1,1); ctx.lineTo(-4,0); ctx.lineTo(-1,-1); ctx.closePath();
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+}
+
 let spaceJustPressed = false;
 window.addEventListener('keydown', e => {
   if (e.key === ' ') { e.preventDefault(); if (!e.repeat) spaceJustPressed = true; }
@@ -1361,6 +1453,7 @@ function startCast(power) {
   const rig = document.getElementById('rodRig');
   rig.classList.remove('flick'); void rig.offsetWidth; rig.classList.add('flick');
   SFX.cast();
+  spawnCastEffect();
 }
 function beginWaiting() {
   state = 'waiting'; waitTimer = 2 + Math.random() * 4.5;
@@ -1534,6 +1627,7 @@ function update(dt) {
     for (const r of ripples) r.t += dt;
     ripples = ripples.filter(r => r.t < 1.3);
   }
+  updateCastParticles(dt);
   document.getElementById('runWarning').style.display = (state==='reeling' && reel.runActive && currentFish.rarity!=='boss') ? 'block' : 'none';
 
   if (charging) {
@@ -2473,6 +2567,7 @@ function draw(now) {
   drawRipples();
   drawLine();
   drawBobber();
+  drawCastParticles();
   drawReelUI();
   ctx.restore();
 }
