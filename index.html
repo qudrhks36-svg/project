@@ -585,6 +585,11 @@ const LAKE_FISH = [
   ["백련어(대두어)","legendary",50,110,"oval","silver"],
   ["미유기","legendary",15,28,"slender","charcoal",null,true],
   ["미호종개","legendary",8,15,"slender","sand"],
+  ["다슬기","common",2,4,"shell","olive"],
+  ["재첩","common",2,4,"shell","sand"],
+  ["민물새우","common",3,6,"shrimp","sand"],
+  ["참게","uncommon",5,10,"crab","olive"],
+  ["민물해파리","legendary",1,3,"jellyfish","teal"],
 ];
 
 const SEA_FISH = [
@@ -637,6 +642,12 @@ const SEA_FISH = [
   ["부시리","legendary",60,120,"torpedo","deepBlue","lateral"],
   ["자바리(다금바리)","legendary",50,100,"oval","charcoal","spots"],
   ["옥돔","legendary",25,45,"oval","rose"],
+  ["보리새우","common",8,14,"shrimp","sand"],
+  ["대하","uncommon",15,22,"shrimp","sunsetOrange"],
+  ["소라","common",5,10,"shell","sand"],
+  ["전복","rare",8,15,"shell","olive"],
+  ["보름달물해파리","uncommon",20,40,"jellyfish","silver"],
+  ["대게","rare",15,25,"crab","crimson"],
 ];
 
 /* ----- Open-ocean regions: large pelagic species reflecting real ecosystems ----- */
@@ -656,6 +667,11 @@ const PACIFIC_FISH = [
   ["흑새치","rare",220,400,"slender","charcoal","lateral"],
   ["대왕쥐가오리","legendary",250,500,"flat","charcoal"],
   ["개복치","legendary",100,250,"oval","silver","spots"],
+  ["훔볼트오징어","uncommon",40,80,"squid","charcoal"],
+  ["킹크랩","rare",20,35,"crab","crimson"],
+  ["앵무조개","rare",15,25,"shell","sand"],
+  ["태평양보름달해파리","common",25,45,"jellyfish","silver"],
+  ["대왕조개","legendary",100,140,"shell","teal"],
 ];
 
 const ATLANTIC_FISH = [
@@ -674,6 +690,11 @@ const ATLANTIC_FISH = [
   ["대서양황새치","rare",180,300,"slender","charcoal","lateral"],
   ["대서양쥐가오리","legendary",200,400,"flat","charcoal"],
   ["대서양그린란드상어","legendary",300,500,"shark","charcoal"],
+  ["대서양가리비","common",8,15,"shell","rose"],
+  ["대서양홍합","common",5,10,"shell","charcoal"],
+  ["대서양대게","uncommon",15,25,"crab","crimson"],
+  ["대서양랍스터","rare",20,40,"shrimp","crimson"],
+  ["사자갈기해파리","legendary",50,100,"jellyfish","crimson"],
 ];
 
 /* ----- Special mega fish: unique catching mechanics, ocean regions only, rare encounter ----- */
@@ -1521,6 +1542,7 @@ function drawBackground(now) {
 const BODY_HEIGHT_RATIO = {
   torpedo:0.30, oval:0.44, slender:0.17, flat:0.5, spiny:0.34, turtle:0.5,
   squid:0.28, crab:0.6, shark:0.30, whale:0.5, giant_squid:0.32,
+  shrimp:0.5, jellyfish:0.7, shell:0.5,
 };
 
 function bodyGradient(c, colors, len) {
@@ -1754,6 +1776,87 @@ function drawFishShape(c, def, len) {
         c.beginPath(); c.moveTo(-len*0.1+i*len*0.12, s*h*0.42); c.lineTo(-len*0.16+i*len*0.12, s*h*0.66); c.stroke();
       }
     }
+  } else if (def.bodyType === 'shrimp') {
+    c.fillStyle = grad;
+    c.beginPath();
+    c.moveTo(len*0.42, -h*0.1);
+    c.quadraticCurveTo(len*0.12, -h*0.5, -len*0.22, -h*0.3);
+    c.quadraticCurveTo(-len*0.42, -h*0.08, -len*0.38, h*0.14);
+    c.quadraticCurveTo(-len*0.1, h*0.34, len*0.2, h*0.16);
+    c.quadraticCurveTo(len*0.38, h*0.05, len*0.42, -h*0.1);
+    c.closePath(); c.fill();
+    c.strokeStyle = colors.dark; c.lineWidth = 1.4; c.stroke();
+    c.strokeStyle = colors.dark; c.globalAlpha = 0.5; c.lineWidth = 1;
+    for (let i=0; i<4; i++) {
+      const t = i/4;
+      c.beginPath();
+      c.moveTo(len*(0.3-t*0.6), -h*(0.34-t*0.08));
+      c.lineTo(len*(0.3-t*0.6), h*(0.3-t*0.05));
+      c.stroke();
+    }
+    c.globalAlpha = 1;
+    c.fillStyle = colors.dark;
+    c.beginPath();
+    c.moveTo(-len*0.38, h*0.14);
+    c.lineTo(-len*0.56, h*0.3);
+    c.lineTo(-len*0.48, h*0.02);
+    c.lineTo(-len*0.56, -h*0.16);
+    c.lineTo(-len*0.34, -h*0.05);
+    c.closePath(); c.fill();
+    c.strokeStyle = colors.dark; c.lineWidth = 1.2;
+    c.beginPath(); c.moveTo(len*0.4,-h*0.16); c.quadraticCurveTo(len*0.7,-h*0.5,len*0.86,-h*0.72); c.stroke();
+    c.beginPath(); c.moveTo(len*0.4,-h*0.05); c.quadraticCurveTo(len*0.65,-h*0.3,len*0.8,-h*0.42); c.stroke();
+    c.fillStyle = '#101010';
+    c.beginPath(); c.arc(len*0.36,-h*0.18, Math.max(1.2,len*0.016), 0, Math.PI*2); c.fill();
+  } else if (def.bodyType === 'jellyfish') {
+    c.save();
+    c.globalAlpha = 0.72;
+    c.fillStyle = grad;
+    c.beginPath();
+    c.arc(0, -h*0.05, len*0.35, Math.PI, 0);
+    c.quadraticCurveTo(len*0.3, h*0.06, 0, h*0.03);
+    c.quadraticCurveTo(-len*0.3, h*0.06, -len*0.35, -h*0.05);
+    c.closePath(); c.fill();
+    c.strokeStyle = colors.dark; c.lineWidth = 1.2; c.globalAlpha = 0.5; c.stroke();
+    c.restore();
+    c.save();
+    c.strokeStyle = colors.dark; c.globalAlpha = 0.35; c.lineWidth = 1;
+    for (let i=-3;i<=3;i++) {
+      const x = i*len*0.1;
+      c.beginPath(); c.moveTo(x, h*0.03); c.quadraticCurveTo(x, h*0.13, x+len*0.05, h*0.08); c.stroke();
+    }
+    c.restore();
+    c.save();
+    c.strokeStyle = colors.base; c.lineWidth = Math.max(1, len*0.012); c.globalAlpha = 0.55;
+    for (let i=-2;i<=2;i++) {
+      const x0 = i*len*0.13;
+      c.beginPath();
+      c.moveTo(x0, h*0.05);
+      c.quadraticCurveTo(x0 + Math.sin(i)*len*0.05, h*0.4, x0 + Math.cos(i)*len*0.06, h*0.68);
+      c.stroke();
+    }
+    c.restore();
+  } else if (def.bodyType === 'shell') {
+    c.fillStyle = grad;
+    c.beginPath();
+    c.moveTo(0, -h*0.5);
+    for (let i=-6;i<=6;i++) {
+      const t = i/6;
+      const x = t*len*0.45;
+      const y = h*0.4*Math.sqrt(Math.max(0,1-t*t*0.9)) - h*0.05;
+      c.lineTo(x, y);
+    }
+    c.closePath(); c.fill();
+    c.strokeStyle = colors.dark; c.lineWidth = 1.4; c.stroke();
+    c.save();
+    c.strokeStyle = colors.dark; c.globalAlpha = 0.45; c.lineWidth = 1;
+    for (let i=-5;i<=5;i+=2) {
+      const t = i/6;
+      const x = t*len*0.45;
+      const y = h*0.35*Math.sqrt(Math.max(0,1-t*t*0.9)) - h*0.05;
+      c.beginPath(); c.moveTo(0,-h*0.5); c.lineTo(x, y); c.stroke();
+    }
+    c.restore();
   } else if (def.bodyType === 'flat') {
     c.fillStyle = grad;
     c.beginPath();
@@ -2021,7 +2124,7 @@ function drawHeroFish() {
 /* =========================================================
    Dex UI
 ========================================================= */
-const DEX_LEN = { whale:38, giant_squid:36, shark:44, turtle:34, crab:30, flat:34 };
+const DEX_LEN = { whale:38, giant_squid:36, shark:44, turtle:34, crab:30, flat:34, shrimp:44, jellyfish:36, shell:40 };
 function dexFishImage(def, locked) {
   const cnv = document.createElement('canvas');
   cnv.width = 72; cnv.height = 48;
