@@ -54,11 +54,15 @@
   .regionBtn[data-region="jeju"]::before     { background: linear-gradient(#2fd9b8,#0a3d33); }
   .regionBtn[data-region="eastsea"]::before  { background: linear-gradient(#ff9d5c,#123a66); }
 
-  #baitBadge {
-    display: none; align-items: center; gap: 4px; align-self: flex-start;
-    background: linear-gradient(135deg,#8fd6a0,#3e9e5c); color: #06210f; font-weight: 900; font-size: 12px;
-    padding: 4px 12px; border-radius: 20px; box-shadow: 0 0 10px rgba(90,220,140,0.5);
+  #statusBar { display: flex; gap: 8px; flex-wrap: wrap; align-self: flex-start; }
+  .statusPill {
+    display: none; align-items: center; gap: 4px;
+    color: #06210f; font-weight: 900; font-size: 12px;
+    padding: 4px 12px; border-radius: 20px;
   }
+  #baitBadge { background: linear-gradient(135deg,#8fd6a0,#3e9e5c); box-shadow: 0 0 10px rgba(90,220,140,0.5); }
+  #boosterBadge { background: linear-gradient(135deg,#ffe082,#ff8f00); box-shadow: 0 0 10px rgba(255,193,7,0.5); }
+  #insuranceBadge { background: linear-gradient(135deg,#81d4fa,#0277bd); color: #fff; box-shadow: 0 0 10px rgba(79,195,247,0.5); }
 
   /* ---- Shop overlay ---- */
   #shopOverlay {
@@ -448,7 +452,11 @@
     </div>
   </div>
 
-  <div id="baitBadge">🎣 미끼 효과 2:00</div>
+  <div id="statusBar">
+    <div id="baitBadge" class="statusPill"></div>
+    <div id="boosterBadge" class="statusPill"></div>
+    <div id="insuranceBadge" class="statusPill"></div>
+  </div>
 
   <div id="regionBar">
     <button class="btn regionBtn active" data-region="lake"><span class="rIcon">🏞️</span><span class="rName">호수</span><span class="rSub">잔잔한 민물</span></button>
@@ -1158,21 +1166,19 @@ const GOLD_DECO = `
   <path d="M188,90 L190,92.5 L194,94 L190,95.5 L188,100 L186,95.5 L182,94 L186,92.5 Z" fill="#fff3c4"/>
   <path d="M135,164 L136.6,166.2 L140,168 L136.6,169.8 L135,174 L133.4,169.8 L130,168 L133.4,166.2 Z" fill="#fff3c4"/>
 `;
-const SKIN_TIERS = [
-  { id:'classic', name:'클래식 우드', icon:'🟤', price:0,
-    rod:['#3a2a1a','#7a5a34'], reel:['#565f66','#20262b'], spool:['#c9d3d8','#7c8890'], deco:'', castEffect:null },
-  { id:'navy',    name:'네이비 카본', icon:'🔵', price:800,
-    rod:['#0d1b2a','#3a5a78'], reel:['#1c2933','#0a1116'], spool:['#7fd0ff','#2b6f9e'], deco:NAVY_DECO,
-    castEffect:{ shape:'shard', color:'#9fe0ff' } },
-  { id:'sakura',  name:'벚꽃 핑크',   icon:'🌸', price:900,
-    rod:['#7a2f45','#f2a8c0'], reel:['#5c2233','#2a0f18'], spool:['#ffd6e3','#e08aa8'], deco:SAKURA_DECO,
-    castEffect:{ shape:'petal', color:'#f7b8cf' } },
-  { id:'emerald', name:'에메랄드',    icon:'🟢', price:1000,
-    rod:['#0a3d33','#2fd9b8'], reel:['#123a30','#04150f'], spool:['#8fe8d5','#1a9b80'], deco:EMERALD_DECO,
-    castEffect:{ shape:'leaf', color:'#5fe0b0' } },
-  { id:'gold',    name:'골드 프로',   icon:'🟡', price:1200,
-    rod:['#7a5a0a','#f2d585'], reel:['#8a6a1a','#3a2a05'], spool:['#ffe9a8','#c9962c'], deco:GOLD_DECO,
-    castEffect:{ shape:'spark', color:'#fff3c4' } },
+const ROD_SKIN_TIERS = [
+  { id:'classic', name:'클래식 우드', icon:'🟤', price:0,    rod:['#3a2a1a','#7a5a34'], deco:'', castEffect:null },
+  { id:'navy',    name:'네이비 카본', icon:'🔵', price:800,  rod:['#0d1b2a','#3a5a78'], deco:NAVY_DECO,    castEffect:{ shape:'shard', color:'#9fe0ff' } },
+  { id:'sakura',  name:'벚꽃 핑크',   icon:'🌸', price:900,  rod:['#7a2f45','#f2a8c0'], deco:SAKURA_DECO,  castEffect:{ shape:'petal', color:'#f7b8cf' } },
+  { id:'emerald', name:'에메랄드',    icon:'🟢', price:1000, rod:['#0a3d33','#2fd9b8'], deco:EMERALD_DECO, castEffect:{ shape:'leaf',  color:'#5fe0b0' } },
+  { id:'gold',    name:'골드 프로',   icon:'🟡', price:1200, rod:['#7a5a0a','#f2d585'], deco:GOLD_DECO,    castEffect:{ shape:'spark', color:'#fff3c4' } },
+];
+const REEL_SKIN_TIERS = [
+  { id:'classic', name:'클래식 우드', icon:'🟤', price:0,   reel:['#565f66','#20262b'], spool:['#c9d3d8','#7c8890'] },
+  { id:'navy',    name:'네이비 카본', icon:'🔵', price:500, reel:['#1c2933','#0a1116'], spool:['#7fd0ff','#2b6f9e'] },
+  { id:'sakura',  name:'벚꽃 핑크',   icon:'🌸', price:550, reel:['#5c2233','#2a0f18'], spool:['#ffd6e3','#e08aa8'] },
+  { id:'emerald', name:'에메랄드',    icon:'🟢', price:600, reel:['#123a30','#04150f'], spool:['#8fe8d5','#1a9b80'] },
+  { id:'gold',    name:'골드 프로',   icon:'🟡', price:700, reel:['#8a6a1a','#3a2a05'], spool:['#ffe9a8','#c9962c'] },
 ];
 
 function defaultEconomy() {
@@ -1180,11 +1186,13 @@ function defaultEconomy() {
     credits:0, reels:['basic'], rods:['basic'], equippedReel:'basic', equippedRod:'basic',
     baits:{ basic:0, boss:0, trophy:0 }, equippedBait:null,
     boosters:{ exp:0, insurance:0 },
-    skins:['classic'], equippedSkin:'classic',
+    rodSkins:['classic'], equippedRodSkin:'classic',
+    reelSkins:['classic'], equippedReelSkin:'classic',
     stock:{}, trophyCatches:0, unlockedAchievements:[],
     dailyDate:null, dailyQuestIds:[], dailyProgress:{}, dailyClaimed:[], loginStreak:0,
     dexRewardsClaimed:[], nickname:'',
     totalSold:0, totalBaitUsed:0, totalBoosterUsed:0, totalInsuranceSaves:0,
+    autoSellCommon:false,
   };
 }
 let economy = Object.assign(defaultEconomy(), JSON.parse(localStorage.getItem('fishingEconomyV1') || '{}'));
@@ -1195,8 +1203,10 @@ if (economy.equippedBait === undefined) economy.equippedBait = economy.activeBai
 delete economy.activeBaitType; delete economy.baitActiveUntil;
 if (!economy.boosters) economy.boosters = { exp:0, insurance:0 };
 if (economy.boosters.insurance === undefined) economy.boosters.insurance = 0;
-if (!economy.skins) economy.skins = ['classic'];
-if (!economy.equippedSkin) economy.equippedSkin = 'classic';
+// migrate the old single combined-skin ownership into split rod/reel ownership
+if (economy.skins) { economy.rodSkins = [...economy.skins]; economy.reelSkins = [...economy.skins]; }
+if (economy.equippedSkin) { economy.equippedRodSkin = economy.equippedSkin; economy.equippedReelSkin = economy.equippedSkin; }
+delete economy.skins; delete economy.equippedSkin;
 if (!economy.stock) economy.stock = {};
 if (!economy.totalSold) economy.totalSold = 0;
 if (!economy.totalBaitUsed) economy.totalBaitUsed = 0;
@@ -1207,19 +1217,21 @@ if (economy.nickname == null) economy.nickname = '';
 function saveEconomy() { localStorage.setItem('fishingEconomyV1', JSON.stringify(economy)); }
 function reelTierById(id) { return REEL_TIERS.find(r => r.id === id) || REEL_TIERS[0]; }
 function rodTierById(id) { return ROD_TIERS.find(r => r.id === id) || ROD_TIERS[0]; }
-function skinTierById(id) { return SKIN_TIERS.find(s => s.id === id) || SKIN_TIERS[0]; }
+function rodSkinById(id) { return ROD_SKIN_TIERS.find(s => s.id === id) || ROD_SKIN_TIERS[0]; }
+function reelSkinById(id) { return REEL_SKIN_TIERS.find(s => s.id === id) || REEL_SKIN_TIERS[0]; }
 function applySkin() {
-  const skin = skinTierById(economy.equippedSkin);
+  const rodSkin = rodSkinById(economy.equippedRodSkin);
+  const reelSkin = reelSkinById(economy.equippedReelSkin);
   const setStops = (gradId, colors) => {
     const stops = document.querySelectorAll(`#${gradId} stop`);
     if (stops[0]) stops[0].setAttribute('stop-color', colors[0]);
     if (stops[1]) stops[1].setAttribute('stop-color', colors[1]);
   };
-  setStops('rodBlank', skin.rod);
-  setStops('reelBody', skin.reel);
-  setStops('spoolGrad', skin.spool);
+  setStops('rodBlank', rodSkin.rod);
+  setStops('reelBody', reelSkin.reel);
+  setStops('spoolGrad', reelSkin.spool);
   const deco = document.getElementById('skinDeco');
-  if (deco) deco.innerHTML = skin.deco || '';
+  if (deco) deco.innerHTML = rodSkin.deco || '';
 }
 function equipmentBuffs() {
   return {
@@ -1338,7 +1350,7 @@ let ripples = [];
 /* ----- Cast particles: skin-specific flourish spawned when a rod skin has castEffect ----- */
 let castParticles = [];
 function spawnCastEffect() {
-  const skin = skinTierById(economy.equippedSkin);
+  const skin = rodSkinById(economy.equippedRodSkin);
   if (!skin.castEffect) return;
   for (let i=0;i<30;i++) {
     castParticles.push({
@@ -1349,6 +1361,23 @@ function spawnCastEffect() {
       wob: Math.random()*Math.PI*2, wobSpeed: 3 + Math.random()*3,
       size: 8 + Math.random()*7,
       life: 0, maxLife: 1.3 + Math.random()*0.7,
+    });
+  }
+}
+function spawnCatchEffect() {
+  const skin = rodSkinById(economy.equippedRodSkin);
+  if (!skin.castEffect) return;
+  for (let i=0;i<40;i++) {
+    const ang = Math.random()*Math.PI*2;
+    const spd = 70 + Math.random()*170;
+    castParticles.push({
+      shape: skin.castEffect.shape, color: skin.castEffect.color,
+      x: bobber.x, y: bobber.y,
+      vx: Math.cos(ang)*spd, vy: Math.sin(ang)*spd - 70,
+      rot: Math.random()*Math.PI*2, vr: (Math.random()-0.5)*7,
+      wob: Math.random()*Math.PI*2, wobSpeed: 3 + Math.random()*3,
+      size: 8 + Math.random()*8,
+      life: 0, maxLife: 1.0 + Math.random()*0.8,
     });
   }
 }
@@ -1535,7 +1564,7 @@ function catchSuccess() {
   if (isTrophy) points = Math.round(points * 1.5);
   if (envState.weather === 'fog') points = Math.round(points * 1.15);
   const isBoosted = (economy.boosters.exp || 0) > 0;
-  if (isBoosted) { points = Math.round(points * 1.5); economy.boosters.exp -= 1; economy.totalBoosterUsed = (economy.totalBoosterUsed||0) + 1; }
+  if (isBoosted) { points = Math.round(points * 1.5); economy.boosters.exp -= 1; economy.totalBoosterUsed = (economy.totalBoosterUsed||0) + 1; updateBoosterBadge(); }
   totalScore += points; saveScore();
   if (isTrophy) economy.trophyCatches = (economy.trophyCatches || 0) + 1;
 
@@ -1548,12 +1577,19 @@ function catchSuccess() {
   dex[currentFish.name] = entry;
   saveDex(); updateTopStats();
 
-  economy.stock[currentFish.name] = (economy.stock[currentFish.name] || 0) + 1;
-  saveEconomy(); queueSyncPush();
   const sellValue = fishSellPrice(currentFish.name);
+  let autoSold = false;
+  if (economy.autoSellCommon && currentFish.rarity === 'common') {
+    autoSold = true;
+    recordSale(sellValue);
+  } else {
+    economy.stock[currentFish.name] = (economy.stock[currentFish.name] || 0) + 1;
+    saveEconomy(); queueSyncPush();
+  }
 
-  resultData = { ok:true, name:currentFish.name, rarity:currentFish.rarity, size, points, sellValue, isNew, isTrophy, isBoss, isBoosted };
-  showCatchReveal(resultData);
+  resultData = { ok:true, name:currentFish.name, rarity:currentFish.rarity, size, points, sellValue, isNew, isTrophy, isBoss, isBoosted, autoSold };
+  spawnCatchEffect();
+  setTimeout(() => showCatchReveal(resultData), 180);
   SFX.catchSuccess(isBoss);
   state = 'result'; resultTimer = isBoss ? 3.4 : 2.6;
   document.getElementById('stageWrap').classList.remove('bossMode');
@@ -1569,7 +1605,7 @@ function catchFail(reason) {
   if ((reason === 'snapped' || reason === 'escaped') && (economy.boosters.insurance || 0) > 0) {
     economy.boosters.insurance -= 1;
     economy.totalInsuranceSaves = (economy.totalInsuranceSaves || 0) + 1;
-    saveEconomy(); updateTopStats(); queueSyncPush(); checkAchievements();
+    saveEconomy(); updateTopStats(); queueSyncPush(); checkAchievements(); updateInsuranceBadge();
     shake = Math.max(shake, 10);
     SFX.bite();
     beginReeling();
@@ -1596,7 +1632,7 @@ function showCatchReveal(d) {
   document.getElementById('popStars').style.color = RARITY[d.rarity].color;
   document.getElementById('popName').textContent = (d.isBoss ? '🌊 ' : '') + d.name;
   document.getElementById('popSize').textContent = `${d.size}cm`;
-  document.getElementById('popPoints').textContent = `+${d.points}점${d.isBoosted ? ' (부스터!)' : ''} · 판매가 ${d.sellValue}C (재고 추가)`;
+  document.getElementById('popPoints').textContent = `+${d.points}점${d.isBoosted ? ' (부스터!)' : ''} · ${d.autoSold ? `자동판매 +${d.sellValue}C` : `판매가 ${d.sellValue}C (재고 추가)`}`;
   reveal.style.display = 'flex';
   clearTimeout(reveal._hideTimer);
   reveal._hideTimer = setTimeout(() => { reveal.style.display = 'none'; }, d.isBoss ? 3600 : 2500);
@@ -2743,15 +2779,34 @@ function checkDexCompletion() {
 function setShopStatus(t) { document.getElementById('shopStatus').textContent = t; }
 
 let shopTab = 'sell';
+let skinSubTab = 'rod';
 function renderShop() {
   const grid = document.getElementById('shopGrid');
   grid.innerHTML = '';
   document.getElementById('shopCreditsNum').textContent = economy.credits;
 
   if (shopTab === 'sell') {
+    const autoCard = document.createElement('div');
+    autoCard.className = 'shopCard';
+    autoCard.style.gridColumn = '1/-1';
+    autoCard.innerHTML = `<div class="name">🔁 커먼(★1) 등급 자동 판매</div><div class="effect">켜두면 커먼 등급 물고기를 잡는 즉시 재고 없이 바로 판매돼요.</div>`;
+    const autoBtn = document.createElement('button');
+    autoBtn.textContent = economy.autoSellCommon ? '켜짐 (끄기)' : '꺼짐 (켜기)';
+    autoBtn.addEventListener('click', () => {
+      economy.autoSellCommon = !economy.autoSellCommon;
+      saveEconomy(); queueSyncPush(); renderShop();
+      setShopStatus(economy.autoSellCommon ? '커먼 등급 자동 판매를 켰어요.' : '커먼 등급 자동 판매를 껐어요.');
+    });
+    autoCard.appendChild(autoBtn);
+    grid.appendChild(autoCard);
+
     const names = Object.keys(economy.stock).filter(n => economy.stock[n] > 0);
     if (names.length === 0) {
-      grid.innerHTML = `<div class="effect" style="grid-column:1/-1; text-align:center; padding:20px;">판매할 재고가 없어요. 물고기를 잡으면 여기 쌓여요!</div>`;
+      const empty = document.createElement('div');
+      empty.className = 'effect';
+      empty.style.cssText = 'grid-column:1/-1; text-align:center; padding:20px;';
+      empty.textContent = '판매할 재고가 없어요. 물고기를 잡으면 여기 쌓여요!';
+      grid.appendChild(empty);
       return;
     }
     names.sort((a,b) => (RARITY[dex[b].rarity].points) - (RARITY[dex[a].rarity].points));
@@ -2833,7 +2888,7 @@ function renderShop() {
       buyOneBtn.addEventListener('click', () => {
         if (economy.credits < item.unitPrice) { setShopStatus('크레딧이 부족해요.'); return; }
         economy.credits -= item.unitPrice; store[key] = (store[key]||0) + 1;
-        saveEconomy(); updateTopStats(); renderShop(); queueSyncPush();
+        saveEconomy(); updateTopStats(); renderShop(); queueSyncPush(); updateStatusBar();
         setShopStatus(item.name + ' 1개를 구매했어요.');
       });
       const buyBundleBtn = document.createElement('button');
@@ -2842,7 +2897,7 @@ function renderShop() {
       buyBundleBtn.addEventListener('click', () => {
         if (economy.credits < item.bundlePrice) { setShopStatus('크레딧이 부족해요.'); return; }
         economy.credits -= item.bundlePrice; store[key] = (store[key]||0) + item.bundleSize;
-        saveEconomy(); updateTopStats(); renderShop(); queueSyncPush();
+        saveEconomy(); updateTopStats(); renderShop(); queueSyncPush(); updateStatusBar();
         setShopStatus(item.name + ` ${item.bundleSize}개 묶음을 구매했어요.`);
       });
       card.appendChild(buyOneBtn);
@@ -2864,15 +2919,32 @@ function renderShop() {
   }
 
   if (shopTab === 'skin') {
-    for (const skin of SKIN_TIERS) {
-      const has = economy.skins.includes(skin.id);
-      const isEquipped = economy.equippedSkin === skin.id;
+    const subBar = document.createElement('div');
+    subBar.style.cssText = 'grid-column:1/-1; display:flex; gap:8px;';
+    const rodSubBtn = document.createElement('button');
+    rodSubBtn.className = 'btn' + (skinSubTab === 'rod' ? ' active' : '');
+    rodSubBtn.textContent = '🎋 낚싯대 스킨';
+    rodSubBtn.addEventListener('click', () => { skinSubTab = 'rod'; renderShop(); });
+    const reelSubBtn = document.createElement('button');
+    reelSubBtn.className = 'btn' + (skinSubTab === 'reel' ? ' active' : '');
+    reelSubBtn.textContent = '🎣 릴 스킨';
+    reelSubBtn.addEventListener('click', () => { skinSubTab = 'reel'; renderShop(); });
+    subBar.appendChild(rodSubBtn); subBar.appendChild(reelSubBtn);
+    grid.appendChild(subBar);
+
+    const isRodSub = skinSubTab === 'rod';
+    const tiers = isRodSub ? ROD_SKIN_TIERS : REEL_SKIN_TIERS;
+    const owned = isRodSub ? economy.rodSkins : economy.reelSkins;
+    const equippedId = isRodSub ? economy.equippedRodSkin : economy.equippedReelSkin;
+    for (const skin of tiers) {
+      const has = owned.includes(skin.id);
+      const isEquipped = equippedId === skin.id;
       const card = document.createElement('div');
       card.className = 'shopCard' + (isEquipped ? ' equipped' : '');
       card.innerHTML = `
         <div class="icon">${skin.icon}</div>
         <div class="name">${skin.name}</div>
-        <div class="effect">코스메틱 · 성능 효과 없음</div>
+        <div class="effect">코스메틱 · 성능 효과 없음${isRodSub && skin.castEffect ? ' · 캐스팅 파티클 포함' : ''}</div>
         <div class="price">${skin.price === 0 ? '기본 보유' : skin.price + ' 크레딧'}</div>
       `;
       const btn = document.createElement('button');
@@ -2881,13 +2953,14 @@ function renderShop() {
       else { btn.textContent = '구매'; btn.disabled = economy.credits < skin.price; }
       btn.addEventListener('click', () => {
         if (has) {
-          economy.equippedSkin = skin.id;
+          if (isRodSub) economy.equippedRodSkin = skin.id; else economy.equippedReelSkin = skin.id;
           saveEconomy(); renderShop(); queueSyncPush(); applySkin();
           setShopStatus(`${skin.name} 스킨을 장착했어요.`);
         } else {
           if (economy.credits < skin.price) { setShopStatus('크레딧이 부족해요.'); return; }
           economy.credits -= skin.price;
-          economy.skins.push(skin.id); economy.equippedSkin = skin.id;
+          owned.push(skin.id);
+          if (isRodSub) economy.equippedRodSkin = skin.id; else economy.equippedReelSkin = skin.id;
           saveEconomy(); updateTopStats(); renderShop(); queueSyncPush(); applySkin();
           checkAchievements();
           setShopStatus(`${skin.name} 스킨을 구매했어요.`);
@@ -2977,7 +3050,28 @@ function updateBaitBadge() {
     badge.style.display = 'none';
   }
 }
-updateBaitBadge();
+function updateBoosterBadge() {
+  const badge = document.getElementById('boosterBadge');
+  const owned = economy.boosters.exp || 0;
+  if (owned > 0) {
+    badge.style.display = 'inline-flex';
+    badge.textContent = `${BOOSTER_TYPES.exp.icon} 부스터 보유 · ${owned}개`;
+  } else {
+    badge.style.display = 'none';
+  }
+}
+function updateInsuranceBadge() {
+  const badge = document.getElementById('insuranceBadge');
+  const owned = economy.boosters.insurance || 0;
+  if (owned > 0) {
+    badge.style.display = 'inline-flex';
+    badge.textContent = `${BOOSTER_TYPES.insurance.icon} 보험권 보유 · ${owned}개`;
+  } else {
+    badge.style.display = 'none';
+  }
+}
+function updateStatusBar() { updateBaitBadge(); updateBoosterBadge(); updateInsuranceBadge(); }
+updateStatusBar();
 
 /* =========================================================
    Daily quests + login streak
@@ -3197,8 +3291,8 @@ function computeStatsSnapshot() {
     totalBaitUsed: economy.totalBaitUsed || 0,
     totalBoosterUsed: economy.totalBoosterUsed || 0,
     totalInsuranceSaves: economy.totalInsuranceSaves || 0,
-    skinsOwned: economy.skins.length,
-    skinsTotal: SKIN_TIERS.length,
+    skinsOwned: economy.rodSkins.length + economy.reelSkins.length,
+    skinsTotal: ROD_SKIN_TIERS.length + REEL_SKIN_TIERS.length,
   };
 }
 
