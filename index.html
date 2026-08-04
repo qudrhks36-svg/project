@@ -166,8 +166,10 @@
   }
   .dexCard.caught { border-color: var(--rc, #4fc3f7); box-shadow: 0 0 10px -2px var(--rc, #4fc3f7); }
   .dexCard.bossCardMini { border-color: rgba(255,82,82,0.4); }
+  .dexCard.mythicCardMini { border-color: rgba(213,0,249,0.6); box-shadow: 0 0 12px -1px rgba(213,0,249,0.55); }
   .dexCard .name { font-size: 10.3px; line-height: 1.2; min-height: 24px; }
   .dexCard .stars { font-size: 9px; letter-spacing: 1px; }
+  .dexCard .mythicLabel { font-size: 7.6px; font-weight: 900; letter-spacing: 1.4px; color: #d500f9; text-shadow: 0 0 6px rgba(213,0,249,0.8); }
   .dexCard .best { font-size: 8.7px; color: #ffd54f; }
   .dexImg { display: block; margin: 0 auto; image-rendering: -webkit-optimize-contrast; }
   #dexClose { align-self: flex-end; }
@@ -258,12 +260,23 @@
     from { background-color: rgba(170,0,0,0.85); }
     to   { background-color: rgba(255,45,45,0.95); }
   }
+  #bossBanner.mythicBanner { animation: mythicBannerFlash 0.55s ease-in-out infinite alternate; }
+  @keyframes mythicBannerFlash {
+    from { background-color: rgba(90,0,140,0.85); }
+    to   { background-color: rgba(213,0,249,0.95); }
+  }
   #stageWrap.bossMode::after {
     content: ''; position: absolute; inset: 0; pointer-events: none;
     box-shadow: inset 0 0 90px 14px rgba(255,25,25,0.55);
     animation: bossPulse 1.1s ease-in-out infinite;
   }
   @keyframes bossPulse { 0%,100% { opacity: 0.5; } 50% { opacity: 1; } }
+  #stageWrap.mythicMode::after {
+    content: ''; position: absolute; inset: 0; pointer-events: none;
+    box-shadow: inset 0 0 100px 16px rgba(213,0,249,0.6);
+    animation: mythicPulse 0.9s ease-in-out infinite;
+  }
+  @keyframes mythicPulse { 0%,100% { opacity: 0.5; } 50% { opacity: 1; } }
 
   /* ---- Mobile-style bottom action bar ---- */
   #mobileBar { width: 900px; display: flex; flex-direction: column; align-items: center; gap: 6px; }
@@ -898,8 +911,12 @@ const BOSS_FISH = [
   ["범고래","boss",400,700,"whale","charcoal"],
   ["향고래","boss",600,1500,"whale","deepBlue"],
   ["대왕오징어","boss",300,700,"giant_squid","ink"],
-  ["돌묵상어","boss",400,900,"shark","olive",null,false,["jeju"]],
-  ["밍크고래","boss",500,850,"whale","olive",null,false,["eastsea"]],
+  /* Regional exclusives: 'mythic' tier, harder than boss (tighter zone, faster needle/tension) */
+  ["이무기","mythic",600,1200,"slender","olive","lateral",false,["sea"]],
+  ["돌묵상어","mythic",400,900,"shark","olive",null,false,["jeju"]],
+  ["밍크고래","mythic",500,850,"whale","olive",null,false,["eastsea"]],
+  ["태평양대왕문어","mythic",300,700,"squid","crimson",null,false,["pacific"]],
+  ["크라켄","mythic",600,1400,"giant_squid","ink",null,false,["atlantic"]],
 ];
 
 const COLOR_PRESETS = {
@@ -924,7 +941,8 @@ const RARITY = {
   uncommon:  { label:"UNCOMMON",  color:"#4fc3f7", stars:2, points:36,  hookWindow:0.58, zoneWidthRatio:0.23, needleSpeed:1.55, tensionRate:9.8,  gain:10.5 },
   rare:      { label:"RARE",      color:"#ba68c8", stars:3, points:95,  hookWindow:0.50, zoneWidthRatio:0.19, needleSpeed:1.75, tensionRate:10.3, gain:9.5 },
   legendary: { label:"LEGENDARY", color:"#ffd54f", stars:5, points:300, hookWindow:0.44, zoneWidthRatio:0.17, needleSpeed:1.85, tensionRate:10.0, gain:9.5 },
-  boss:      { label:"BOSS",      color:"#ff3d3d", stars:5, points:900, hookWindow:0.70, zoneWidthRatio:0.10, needleSpeed:2.25, tensionRate:10.5, gain:8.0 },
+  boss:      { label:"BOSS",      color:"#ff3d3d", stars:5, points:900,  hookWindow:0.70, zoneWidthRatio:0.10, needleSpeed:2.25, tensionRate:10.5, gain:8.0 },
+  mythic:    { label:"MYTHIC",    color:"#d500f9", stars:5, points:1500, hookWindow:0.60, zoneWidthRatio:0.07, needleSpeed:2.65, tensionRate:11.5, gain:7.0 },
 };
 const RARITY_WEIGHT = { common:50, uncommon:28, rare:15, legendary:7 };
 const BOSS_CHANCE_BASE = 0.045;
@@ -1343,7 +1361,7 @@ let reel = {
   phase:'bar', mashProgress:0, mashTimer:0, mashTimerMax:0,
 };
 const MASH_THRESHOLD = 82;
-function usesMashFinisher(rarity) { return rarity === 'legendary' || rarity === 'boss'; }
+function usesMashFinisher(rarity) { return rarity === 'legendary' || rarity === 'boss' || rarity === 'mythic'; }
 let resultData = null;
 let ripples = [];
 
@@ -1529,16 +1547,20 @@ function triggerBite() {
   const bossPool = BOSS_FISH.filter(f => !f[8] || f[8].includes(spot));
   const f = isBoss ? bossPool[Math.floor(Math.random()*bossPool.length)] : pickWeightedFish();
   currentFish = fishDef(f);
+  const isMythic = currentFish.rarity === 'mythic';
   biteTimer = RARITY[currentFish.rarity].hookWindow * mods.hookWindowMul;
   shake = isBoss ? 18 : 8;
-  document.getElementById('bossBanner').style.display = isBoss ? 'block' : 'none';
-  setMsg(isBoss ? "!! 초대형 어종이다 – 지금이다 !!" : "지금이다! 탭하세요!");
+  const banner = document.getElementById('bossBanner');
+  banner.style.display = isBoss ? 'block' : 'none';
+  banner.classList.toggle('mythicBanner', isMythic);
+  banner.textContent = isMythic ? '💀 전설의 괴수 출현 💀' : '⚠️ 초대형 어종 출현 ⚠️';
+  setMsg(isMythic ? "!! 전설의 괴수다 – 지금이다 !!" : isBoss ? "!! 초대형 어종이다 – 지금이다 !!" : "지금이다! 탭하세요!");
   if (isBoss) SFX.bossAlert(); else SFX.bite();
 }
 
 function beginReeling() {
   state = 'reeling';
-  const isBoss = currentFish.rarity === 'boss';
+  const isBoss = currentFish.rarity === 'boss' || currentFish.rarity === 'mythic';
   const conf = RARITY[currentFish.rarity];
   const tier = getTier(playerLevel());
   reel.progress = 0; reel.tension = 0; reel.needleT = Math.random()*10; reel.needleDir = 1;
@@ -1549,12 +1571,14 @@ function beginReeling() {
   reel.finalStand = false; reel.finalStandDone = false; reel._finalStandStarted = false;
   reel.phase = 'bar'; reel.mashProgress = 0; reel.mashTimer = 0;
   document.getElementById('bossBanner').style.display = 'none';
-  document.getElementById('stageWrap').classList.toggle('bossMode', isBoss);
+  const isMythic = currentFish.rarity === 'mythic';
+  document.getElementById('stageWrap').classList.toggle('bossMode', isBoss && !isMythic);
+  document.getElementById('stageWrap').classList.toggle('mythicMode', isMythic);
   setMsg(isBoss ? "필사적으로 버텨라!!" : "타이밍 맞춰 탭! 릴을 감으세요");
 }
 
 function catchSuccess() {
-  const isBoss = currentFish.rarity === 'boss';
+  const isBoss = currentFish.rarity === 'boss' || currentFish.rarity === 'mythic';
   const conf = RARITY[currentFish.rarity];
   const size = (currentFish.minLen + Math.random()*(currentFish.maxLen-currentFish.minLen)).toFixed(1);
   const sizeRatio = (size-currentFish.minLen)/(currentFish.maxLen-currentFish.minLen+0.001);
@@ -1592,7 +1616,7 @@ function catchSuccess() {
   setTimeout(() => showCatchReveal(resultData), 180);
   SFX.catchSuccess(isBoss);
   state = 'result'; resultTimer = isBoss ? 3.4 : 2.6;
-  document.getElementById('stageWrap').classList.remove('bossMode');
+  document.getElementById('stageWrap').classList.remove('bossMode'); document.getElementById('stageWrap').classList.remove('mythicMode');
   bumpDailyProgress('catchCount', 1);
   if (RARITY[currentFish.rarity].stars >= 3) bumpDailyProgress('rareCount', 1);
   if (isNew) bumpDailyProgress('newDexCount', 1);
@@ -1617,7 +1641,7 @@ function catchFail(reason) {
   const text = reason === 'snapped' ? "줄이 끊어졌습니다!" : reason === 'escaped' ? "괴물이 사라졌다..." : "놓쳤습니다...";
   showFailCard(text);
   SFX.catchFail();
-  document.getElementById('stageWrap').classList.remove('bossMode');
+  document.getElementById('stageWrap').classList.remove('bossMode'); document.getElementById('stageWrap').classList.remove('mythicMode');
 }
 
 function showCatchReveal(d) {
@@ -1695,7 +1719,7 @@ function update(dt) {
     ripples = ripples.filter(r => r.t < 1.3);
   }
   updateCastParticles(dt);
-  document.getElementById('runWarning').style.display = (state==='reeling' && reel.runActive && currentFish.rarity!=='boss') ? 'block' : 'none';
+  document.getElementById('runWarning').style.display = (state==='reeling' && reel.runActive && currentFish.rarity!=='boss' && currentFish.rarity!=='mythic') ? 'block' : 'none';
 
   if (charging) {
     castPower = Math.min(100, castPower + dt*160);
@@ -1722,7 +1746,7 @@ function update(dt) {
       setTimeout(()=>setMsg("스페이스바 또는 버튼으로 캐스팅하세요"), 1100);
     }
   } else if (state === 'reeling') {
-    const isBoss = currentFish.rarity === 'boss';
+    const isBoss = currentFish.rarity === 'boss' || currentFish.rarity === 'mythic';
     const conf = RARITY[currentFish.rarity];
     const tier = getTier(playerLevel());
     const eq = equipmentBuffs();
@@ -1800,7 +1824,7 @@ function handleSpace() {
     const nx = needleX();
     const inZone = nx >= reel.zoneStart && nx <= reel.zoneStart + reel.zoneWidth;
     reel.flashT = 0.15;
-    const isBoss = currentFish.rarity === 'boss';
+    const isBoss = currentFish.rarity === 'boss' || currentFish.rarity === 'mythic';
     const conf = RARITY[currentFish.rarity];
     const tier = getTier(playerLevel());
     const eq = equipmentBuffs();
@@ -2601,7 +2625,7 @@ function drawMashUI() {
 function drawReelUI() {
   if (state !== 'reeling') return;
   if (reel.phase === 'mash') { drawMashUI(); return; }
-  const isBoss = currentFish.rarity === 'boss';
+  const isBoss = currentFish.rarity === 'boss' || currentFish.rarity === 'mythic';
   const barX = W/2-170, barY = H-130, barW = 340, barH = 24;
 
   ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(barX,barY,barW,barH);
@@ -2717,11 +2741,12 @@ function renderDex() {
   for (const def of list) {
     const caught = dex[def.name];
     const card = document.createElement('div');
-    card.className = 'dexCard' + (caught ? ' caught' : '') + (def.rarity==='boss' ? ' bossCardMini' : '');
+    card.className = 'dexCard' + (caught ? ' caught' : '') + (def.rarity==='boss' ? ' bossCardMini' : '') + (def.rarity==='mythic' ? ' mythicCardMini' : '');
     if (caught) card.style.setProperty('--rc', RARITY[def.rarity].color);
     card.innerHTML = `
       <img class="dexImg" src="${dexFishImage(def, !caught)}" width="72" height="48" alt="">
       <div class="name">${caught ? def.name : '???'}</div>
+      ${caught && def.rarity==='mythic' ? `<div class="mythicLabel">★ MYTHIC ★</div>` : ''}
       <div class="stars" style="color:${caught ? RARITY[def.rarity].color : '#555'}">${caught ? starsStr(RARITY[def.rarity].stars) : '☆☆☆☆☆'}</div>
       ${caught ? `<div class="best">최대 ${caught.best}cm · ${caught.count}마리</div>` : ''}
     `;
@@ -3276,7 +3301,7 @@ const ACHIEVEMENTS = [
 function computeStatsSnapshot() {
   const entries = Object.entries(dex).filter(([k]) => k !== '__economy');
   const totalCatches = entries.reduce((s,[,e]) => s + e.count, 0);
-  const bossCatches = entries.filter(([,e]) => e.rarity === 'boss').reduce((s,[,e]) => s + e.count, 0);
+  const bossCatches = entries.filter(([,e]) => e.rarity === 'boss' || e.rarity === 'mythic').reduce((s,[,e]) => s + e.count, 0);
   const hasPacific = entries.some(([,e]) => e.habitat === 'pacific');
   const hasAtlantic = entries.some(([,e]) => e.habitat === 'atlantic');
   return {
