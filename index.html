@@ -63,6 +63,7 @@
   #baitBadge { background: linear-gradient(135deg,#8fd6a0,#3e9e5c); box-shadow: 0 0 10px rgba(90,220,140,0.5); }
   #boosterBadge { background: linear-gradient(135deg,#ffe082,#ff8f00); box-shadow: 0 0 10px rgba(255,193,7,0.5); }
   #insuranceBadge { background: linear-gradient(135deg,#81d4fa,#0277bd); color: #fff; box-shadow: 0 0 10px rgba(79,195,247,0.5); }
+  #streakBadge { background: linear-gradient(135deg,#ffab40,#dd2c00); color: #fff; box-shadow: 0 0 10px rgba(255,87,34,0.6); }
 
   /* ---- Shop overlay ---- */
   #shopOverlay {
@@ -109,6 +110,12 @@
     font-size: 12px; font-weight: bold; color: #dce6ef; background: rgba(255,255,255,0.08);
     padding: 3px 10px; border-radius: 20px; white-space: nowrap;
   }
+  #prestigeBadge {
+    font-size: 12px; font-weight: 900; color: #3a2400; white-space: nowrap; padding: 3px 10px; border-radius: 20px;
+    background: linear-gradient(135deg,#ffe082,#ffab00); box-shadow: 0 0 10px rgba(255,171,0,0.7);
+    animation: prestigeGlow 1.6s ease-in-out infinite alternate;
+  }
+  @keyframes prestigeGlow { from { filter: brightness(1); } to { filter: brightness(1.25); } }
   #expTrack { position: relative; flex: 1; height: 14px; background: rgba(255,255,255,0.12); border-radius: 7px; overflow: hidden; }
   #expFill { height: 100%; width: 0%; background: linear-gradient(90deg,#5fd0ff,#2b9fe0); transition: width 0.25s; }
   #expLabel {
@@ -170,6 +177,7 @@
   .dexCard .name { font-size: 10.3px; line-height: 1.2; min-height: 24px; }
   .dexCard .stars { font-size: 9px; letter-spacing: 1px; }
   .dexCard .mythicLabel { font-size: 7.6px; font-weight: 900; letter-spacing: 1.4px; color: #d500f9; text-shadow: 0 0 6px rgba(213,0,249,0.8); }
+  .dexCard .conditionLabel { font-size: 7.6px; font-weight: bold; color: #7fe0ff; }
   .dexCard .best { font-size: 8.7px; color: #ffd54f; }
   .dexImg { display: block; margin: 0 auto; image-rendering: -webkit-optimize-contrast; }
   #dexClose { align-self: flex-end; }
@@ -466,6 +474,7 @@
   </div>
 
   <div id="statusBar">
+    <div id="streakBadge" class="statusPill"></div>
     <div id="baitBadge" class="statusPill"></div>
     <div id="boosterBadge" class="statusPill"></div>
     <div id="insuranceBadge" class="statusPill"></div>
@@ -483,6 +492,7 @@
   <div id="levelBar">
     <div class="lvChip">Lv.<span id="lvNum">1</span></div>
     <div id="lvTitle">초보 낚시꾼</div>
+    <div id="prestigeBadge" style="display:none;">👑 낚시의 신</div>
     <div id="expTrack"><div id="expFill"></div><div id="expLabel">0 / 500</div></div>
   </div>
 
@@ -751,6 +761,7 @@ const LAKE_FISH = [
   ["민물새우","common",3,6,"shrimp","sand"],
   ["참게","uncommon",5,10,"crab","olive"],
   ["민물해파리","legendary",1,3,"jellyfish","teal"],
+  ["칠성장어","rare",30,60,"slender","ink",null,false,{night:true}],
 ];
 
 const SEA_FISH = [
@@ -809,6 +820,7 @@ const SEA_FISH = [
   ["전복","rare",8,15,"shell","olive"],
   ["보름달물해파리","uncommon",20,40,"jellyfish","silver"],
   ["대게","rare",15,25,"crab","crimson"],
+  ["안개서대","uncommon",20,35,"flat","sand",null,false,{weather:'fog'}],
 ];
 
 /* ----- Open-ocean regions: large pelagic species reflecting real ecosystems ----- */
@@ -833,6 +845,7 @@ const PACIFIC_FISH = [
   ["앵무조개","rare",15,25,"shell","sand"],
   ["태평양보름달해파리","common",25,45,"jellyfish","silver"],
   ["대왕조개","legendary",100,140,"shell","teal"],
+  ["야광오징어","rare",30,55,"squid","teal",null,false,{night:true}],
 ];
 
 const ATLANTIC_FISH = [
@@ -856,6 +869,7 @@ const ATLANTIC_FISH = [
   ["대서양대게","uncommon",15,25,"crab","crimson"],
   ["대서양랍스터","rare",20,40,"shrimp","crimson"],
   ["사자갈기해파리","legendary",50,100,"jellyfish","crimson"],
+  ["유령가오리","rare",40,80,"flat","charcoal",null,false,{weather:'rain'}],
 ];
 
 /* ----- Jeju: warm subtropical coastal ecosystem, volcanic reefs ----- */
@@ -878,6 +892,7 @@ const JEJU_FISH = [
   ["대왕바리","legendary",80,150,"oval","charcoal","spots"],
   ["황금갈치","legendary",60,110,"slender","gold"],
   ["제주보름달해파리","legendary",20,40,"jellyfish","olive"],
+  ["발광손톱새우","uncommon",4,8,"shrimp","teal",null,false,{night:true}],
 ];
 
 /* ----- East Sea (동해): cold, clear, deep waters off Korea's eastern coast ----- */
@@ -899,6 +914,7 @@ const EASTSEA_FISH = [
   ["은어대구","legendary",70,130,"torpedo","deepBlue","spots"],
   ["대왕문어","legendary",120,200,"squid","ink"],
   ["동해푸른해파리","legendary",25,50,"jellyfish","deepBlue"],
+  ["심해투구게","rare",25,45,"crab","olive",null,false,{weather:'fog'}],
 ];
 
 /* ----- Special mega fish: unique catching mechanics, ocean regions only, rare encounter ----- */
@@ -1320,6 +1336,7 @@ const SFX = {
   splash: () => { sweepBeep(300, 90, 0.28, 'sine', 0.14); beep(180, 0.1, 'triangle', 0.1, 0.02); },
   bite: () => { beep(880, 0.08, 'square', 0.12); beep(1200, 0.1, 'square', 0.1, 0.09); },
   bossAlert: () => { sweepBeep(140, 55, 0.6, 'sawtooth', 0.18); beep(70, 0.5, 'sine', 0.16, 0.08); },
+  mythicAlert: () => { sweepBeep(220, 40, 0.8, 'sawtooth', 0.2); beep(55, 0.6, 'sine', 0.18, 0.1); beep(1400, 0.14, 'sine', 0.11, 0.18); beep(1700, 0.14, 'sine', 0.11, 0.36); },
   tapHit: () => beep(700, 0.055, 'triangle', 0.11),
   tapMiss: () => beep(150, 0.12, 'sawtooth', 0.08),
   catchSuccess: (big) => { [523,659,784,1047].forEach((f,i) => beep(f, 0.18, 'triangle', big?0.16:0.12, i*0.09)); },
@@ -1354,6 +1371,8 @@ let bobber = { x: W/2, y: HORIZON + 60, targetX: W/2, targetY: HORIZON + 60, _po
 let state = 'idle';
 let waitTimer = 0, biteTimer = 0, resultTimer = 0, shake = 0;
 let currentFish = null;
+let catchStreak = 0; // consecutive successful catches without a real failure (insurance saves preserve it)
+function streakBonusMul() { return 1 + Math.min(0.30, catchStreak * 0.02); }
 let reel = {
   progress:0, tension:0, needleT:0, zoneStart:0.4, zoneWidth:0.3, flashT:0,
   runActive:false, runTimer:0, nextRunAt:0,
@@ -1477,8 +1496,15 @@ canvas.addEventListener('pointerdown', onPressStart);
 canvas.addEventListener('pointerup', onPressEnd);
 canvas.addEventListener('pointerleave', onPressEnd);
 
-function pool() { return REGIONS[spot].fishArr; }
-function fishDef(f) { return { name:f[0], rarity:f[1], minLen:f[2], maxLen:f[3], bodyType:f[4], colorKey:f[5], pattern:f[6]||null, whiskers:!!f[7] }; }
+/* ----- Night/weather-exclusive species: tuple[8] = {night:true} or {weather:'fog'|'rain'} ----- */
+function conditionMet(cond) {
+  if (!cond) return true;
+  if (cond.night) return envState.isNight;
+  if (cond.weather) return envState.weather === cond.weather;
+  return true;
+}
+function pool() { return REGIONS[spot].fishArr.filter(f => conditionMet(f[8])); }
+function fishDef(f) { return { name:f[0], rarity:f[1], minLen:f[2], maxLen:f[3], bodyType:f[4], colorKey:f[5], pattern:f[6]||null, whiskers:!!f[7], condition:f[8]||null }; }
 
 /* ----- Global name -> def lookup, used for sell pricing (size ratio vs species max) ----- */
 const FISH_BY_NAME = {};
@@ -1555,7 +1581,7 @@ function triggerBite() {
   banner.classList.toggle('mythicBanner', isMythic);
   banner.textContent = isMythic ? '💀 전설의 괴수 출현 💀' : '⚠️ 초대형 어종 출현 ⚠️';
   setMsg(isMythic ? "!! 전설의 괴수다 – 지금이다 !!" : isBoss ? "!! 초대형 어종이다 – 지금이다 !!" : "지금이다! 탭하세요!");
-  if (isBoss) SFX.bossAlert(); else SFX.bite();
+  if (isMythic) SFX.mythicAlert(); else if (isBoss) SFX.bossAlert(); else SFX.bite();
 }
 
 function beginReeling() {
@@ -1589,6 +1615,10 @@ function catchSuccess() {
   if (envState.weather === 'fog') points = Math.round(points * 1.15);
   const isBoosted = (economy.boosters.exp || 0) > 0;
   if (isBoosted) { points = Math.round(points * 1.5); economy.boosters.exp -= 1; economy.totalBoosterUsed = (economy.totalBoosterUsed||0) + 1; updateBoosterBadge(); }
+  const streakMul = streakBonusMul();
+  points = Math.round(points * streakMul);
+  catchStreak += 1;
+  updateStreakBadge();
   totalScore += points; saveScore();
   if (isTrophy) economy.trophyCatches = (economy.trophyCatches || 0) + 1;
 
@@ -1601,7 +1631,7 @@ function catchSuccess() {
   dex[currentFish.name] = entry;
   saveDex(); updateTopStats();
 
-  const sellValue = fishSellPrice(currentFish.name);
+  const sellValue = Math.max(1, Math.round(fishSellPrice(currentFish.name) * streakMul));
   let autoSold = false;
   if (economy.autoSellCommon && currentFish.rarity === 'common') {
     autoSold = true;
@@ -1611,7 +1641,7 @@ function catchSuccess() {
     saveEconomy(); queueSyncPush();
   }
 
-  resultData = { ok:true, name:currentFish.name, rarity:currentFish.rarity, size, points, sellValue, isNew, isTrophy, isBoss, isBoosted, autoSold };
+  resultData = { ok:true, name:currentFish.name, rarity:currentFish.rarity, size, points, sellValue, isNew, isTrophy, isBoss, isBoosted, autoSold, streak: catchStreak };
   spawnCatchEffect();
   setTimeout(() => showCatchReveal(resultData), 180);
   SFX.catchSuccess(isBoss);
@@ -1637,6 +1667,7 @@ function catchFail(reason) {
     setMsg('🛡️ 보험권 발동! 도망가지 못했다 - 처음부터 다시!');
     return;
   }
+  catchStreak = 0; updateStreakBadge();
   resultData = { ok:false, reason };
   state = 'result'; resultTimer = 1.4;
   const text = reason === 'snapped' ? "줄이 끊어졌습니다!" : reason === 'escaped' ? "괴물이 사라졌다..." : "놓쳤습니다...";
@@ -1657,7 +1688,7 @@ function showCatchReveal(d) {
   document.getElementById('popStars').style.color = RARITY[d.rarity].color;
   document.getElementById('popName').textContent = (d.isBoss ? '🌊 ' : '') + d.name;
   document.getElementById('popSize').textContent = `${d.size}cm`;
-  document.getElementById('popPoints').textContent = `+${d.points}점${d.isBoosted ? ' (부스터!)' : ''} · ${d.autoSold ? `자동판매 +${d.sellValue}C` : `판매가 ${d.sellValue}C (재고 추가)`}`;
+  document.getElementById('popPoints').textContent = `+${d.points}점${d.isBoosted ? ' (부스터!)' : ''}${d.streak >= 2 ? ` 🔥x${d.streak}` : ''} · ${d.autoSold ? `자동판매 +${d.sellValue}C` : `판매가 ${d.sellValue}C (재고 추가)`}`;
   reveal.style.display = 'flex';
   clearTimeout(reveal._hideTimer);
   reveal._hideTimer = setTimeout(() => { reveal.style.display = 'none'; }, d.isBoss ? 3600 : 2500);
@@ -1743,6 +1774,7 @@ function update(dt) {
     bobber.y = bobber.targetY + Math.sin(performance.now()/55)*7;
     if (biteTimer <= 0) {
       document.getElementById('bossBanner').style.display = 'none';
+      catchStreak = 0; updateStreakBadge();
       setMsg("놓쳤습니다..."); state = 'idle';
       setTimeout(()=>setMsg("스페이스바 또는 버튼으로 캐스팅하세요"), 1100);
     }
@@ -2746,10 +2778,12 @@ function renderDex() {
     const card = document.createElement('div');
     card.className = 'dexCard' + (caught ? ' caught' : '') + (def.rarity==='boss' ? ' bossCardMini' : '') + (def.rarity==='mythic' ? ' mythicCardMini' : '');
     if (caught) card.style.setProperty('--rc', RARITY[def.rarity].color);
+    const condText = def.condition ? (def.condition.night ? '🌙 야간 전용' : def.condition.weather === 'fog' ? '🌫️ 안개 전용' : def.condition.weather === 'rain' ? '🌧️ 비 전용' : '') : '';
     card.innerHTML = `
       <img class="dexImg" src="${dexFishImage(def, !caught)}" width="72" height="48" alt="">
       <div class="name">${caught ? def.name : '???'}</div>
       ${caught && def.rarity==='mythic' ? `<div class="mythicLabel">★ MYTHIC ★</div>` : ''}
+      ${caught && condText ? `<div class="conditionLabel">${condText}</div>` : ''}
       <div class="stars" style="color:${caught ? RARITY[def.rarity].color : '#555'}">${caught ? starsStr(RARITY[def.rarity].stars) : '☆☆☆☆☆'}</div>
       ${caught ? `<div class="best">최대 ${caught.best}cm · ${caught.count}마리</div>` : ''}
     `;
@@ -3098,7 +3132,16 @@ function updateInsuranceBadge() {
     badge.style.display = 'none';
   }
 }
-function updateStatusBar() { updateBaitBadge(); updateBoosterBadge(); updateInsuranceBadge(); }
+function updateStreakBadge() {
+  const badge = document.getElementById('streakBadge');
+  if (catchStreak >= 2) {
+    badge.style.display = 'inline-flex';
+    badge.textContent = `🔥 연속 ${catchStreak}마리 · +${Math.round((streakBonusMul()-1)*100)}%`;
+  } else {
+    badge.style.display = 'none';
+  }
+}
+function updateStatusBar() { updateBaitBadge(); updateBoosterBadge(); updateInsuranceBadge(); updateStreakBadge(); }
 updateStatusBar();
 
 /* =========================================================
@@ -3239,6 +3282,7 @@ async function loadLeaderboard() {
     rows.forEach((row, i) => {
       const nick = (row.dex && row.dex.__economy && row.dex.__economy.nickname && row.dex.__economy.nickname.trim())
         || ('낚시꾼 ' + String(row.code || '????').slice(0,4));
+      const prestige = isPrestigeFromDexBlob(row.dex);
       const catches = row.dex
         ? Object.entries(row.dex).filter(([k]) => k !== '__economy').reduce((s,[,e]) => s + (e.count||0), 0)
         : 0;
@@ -3246,7 +3290,7 @@ async function loadLeaderboard() {
       el.className = 'rankRow' + (row.code === syncCode ? ' me' : '');
       el.innerHTML = `
         <div class="rrank">${medal[i] || '#' + (i+1)}</div>
-        <div class="rname">${nick}</div>
+        <div class="rname">${prestige ? '👑 ' : ''}${nick}</div>
         <div class="rsize">${row.total_score}점</div>
         <div class="rcount">${catches}마리</div>
       `;
@@ -3321,7 +3365,26 @@ function computeStatsSnapshot() {
     totalInsuranceSaves: economy.totalInsuranceSaves || 0,
     skinsOwned: economy.rodSkins.length + economy.reelSkins.length,
     skinsTotal: ROD_SKIN_TIERS.length + REEL_SKIN_TIERS.length,
+    mythicCaught: entries.filter(([,e]) => e.rarity === 'mythic').length,
+    mythicTotal: BOSS_FISH.filter(f => f[1] === 'mythic').length,
   };
+}
+/* ----- Prestige: full dex + all mythic exclusives + every rod/reel skin collected ----- */
+function isPrestigeMaster(s) {
+  return s.dexCount >= s.dexTotal && s.mythicCaught >= s.mythicTotal && s.skinsOwned >= s.skinsTotal;
+}
+// same check for any dex+economy blob (e.g. a leaderboard row that isn't the local player)
+function isPrestigeFromDexBlob(dexBlob) {
+  if (!dexBlob) return false;
+  const econ = dexBlob.__economy || {};
+  const entries = Object.entries(dexBlob).filter(([k]) => k !== '__economy');
+  const dexTotal = LAKE_FISH.length + SEA_FISH.length + JEJU_FISH.length + EASTSEA_FISH.length + PACIFIC_FISH.length + ATLANTIC_FISH.length + BOSS_FISH.length;
+  const mythicTotal = BOSS_FISH.filter(f => f[1] === 'mythic').length;
+  const skinsOwned = (econ.rodSkins ? econ.rodSkins.length : 0) + (econ.reelSkins ? econ.reelSkins.length : 0);
+  const skinsTotal = ROD_SKIN_TIERS.length + REEL_SKIN_TIERS.length;
+  return entries.length >= dexTotal
+    && entries.filter(([,e]) => e.rarity === 'mythic').length >= mythicTotal
+    && skinsOwned >= skinsTotal;
 }
 
 let achievementQueue = [];
@@ -3346,6 +3409,7 @@ function checkAchievements() {
     updateTopStats();
     queueSyncPush();
   }
+  document.getElementById('prestigeBadge').style.display = isPrestigeMaster(snap) ? 'inline-block' : 'none';
 }
 function showNextAchievementToast() {
   if (!achievementQueue.length) return;
