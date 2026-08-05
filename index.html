@@ -668,7 +668,7 @@
 <div id="syncOverlay">
   <div id="syncPanel">
     <h2>🔗 기록 동기화</h2>
-    <p>이 코드를 입력하면 어느 기기·브라우저에서든 같은 도감·점수를 이어서 볼 수 있어요. 코드를 잃어버리면 기록도 잃어버리니 꼭 저장해두세요. 같은 코드를 쓰는 기기는 앱을 열 때마다 자동으로 최신 기록을 확인해서 불러오니, 다른 기기에서 플레이한 뒤에는 이 기기를 열기 전에 인터넷에 연결돼 있어야 최신 상태로 맞춰져요.</p>
+    <p>이 코드를 입력하면 어느 기기·브라우저에서든 같은 도감·점수를 이어서 볼 수 있어요. 코드를 잃어버리면 기록도 잃어버리니 꼭 저장해두세요. 같은 코드를 쓰는 기기는 앱을 열 때마다 자동으로 비교해서, 레벨·도감·장비 등 진행 상황이 더 앞서 있는 쪽으로 항상 맞춰져요 (최근에 저장한 쪽이 아니라 더 많이 진행된 쪽이 우선).</p>
     <div id="syncCodeBox">
       <span id="syncCodeText">----------</span>
       <button class="btn" id="syncCopyBtn">복사</button>
@@ -1055,7 +1055,6 @@ function saveScore() { localStorage.setItem('fishingScoreV3', String(totalScore)
 const SUPABASE_URL = 'https://nymbvausljlikofaoxdz.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_KTvBIl5GurqLYFe3HNEp2g_urPHXus4';
 const SYNC_CODE_KEY = 'fishingSyncCodeV1';
-const LAST_SYNCED_KEY = 'fishingLastSyncedAtV1';
 
 function genSyncCode() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -1089,18 +1088,12 @@ async function pushSaveNow() {
   setSyncStatus('저장 중...');
   try {
     dex.__economy = economy;
-    const nowIso = new Date().toISOString();
     const res = await sbFetch('fishing_saves?on_conflict=code', {
       method: 'POST',
       headers: { 'Prefer': 'resolution=merge-duplicates' },
-      body: JSON.stringify([{ code: syncCode, dex, total_score: totalScore, updated_at: nowIso }]),
+      body: JSON.stringify([{ code: syncCode, dex, total_score: totalScore, updated_at: new Date().toISOString() }]),
     });
-    if (res.ok) {
-      localStorage.setItem(LAST_SYNCED_KEY, String(new Date(nowIso).getTime()));
-      setSyncStatus('저장됨 · ' + new Date().toLocaleTimeString());
-    } else {
-      setSyncStatus('저장 실패 (' + res.status + ')');
-    }
+    setSyncStatus(res.ok ? '저장됨 · ' + new Date().toLocaleTimeString() : '저장 실패 (' + res.status + ')');
   } catch (e) {
     setSyncStatus('저장 실패 (네트워크)');
   }
@@ -1119,8 +1112,33 @@ function applyLoadedRow(row) {
   if (dex.__economy) { economy = Object.assign(defaultEconomy(), dex.__economy); saveEconomy(); }
   saveDex(); saveScore(); updateTopStats(); checkDexCompletion(); checkAchievements();
   applySkin(); updateStatusBar();
-  const cloudTime = row.updated_at ? new Date(row.updated_at).getTime() : Date.now();
-  localStorage.setItem(LAST_SYNCED_KEY, String(cloudTime));
+}
+
+/* ----- Progress comparison: instead of "last saved wins", always keep whichever
+   side (local vs cloud) is more advanced — level/score first, then dex count,
+   then equipment tier, then skins, then credits as a final tiebreaker. ----- */
+function progressScoreOf(dexBlob, totalScoreVal) {
+  const econ = (dexBlob && dexBlob.__economy) || {};
+  const entries = dexBlob ? Object.entries(dexBlob).filter(([k]) => k !== '__economy') : [];
+  return {
+    score: totalScoreVal || 0,
+    dexCount: entries.length,
+    equipTier: Math.max(0, REEL_TIERS.findIndex(t => t.id === econ.equippedReel))
+             + Math.max(0, ROD_TIERS.findIndex(t => t.id === econ.equippedRod)),
+    skinsOwned: (econ.rodSkins ? econ.rodSkins.length : 0) + (econ.reelSkins ? econ.reelSkins.length : 0),
+    credits: econ.credits || 0,
+  };
+}
+function isMoreAdvanced(a, b) {
+  if (a.score !== b.score) return a.score > b.score;
+  if (a.dexCount !== b.dexCount) return a.dexCount > b.dexCount;
+  if (a.equipTier !== b.equipTier) return a.equipTier > b.equipTier;
+  if (a.skinsOwned !== b.skinsOwned) return a.skinsOwned > b.skinsOwned;
+  return a.credits > b.credits;
+}
+function localProgressSnapshot() {
+  const blob = Object.assign({}, dex, { __economy: economy });
+  return progressScoreOf(blob, totalScore);
 }
 
 async function loadSaveByCode(code) {
@@ -1132,11 +1150,20 @@ async function loadSaveByCode(code) {
       setSyncStatus('해당 코드의 기록을 찾을 수 없어요.');
       return false;
     }
-    applyLoadedRow(rows[0]);
+    const row = rows[0];
+    const cloudP = progressScoreOf(row.dex, row.total_score);
+    const localP = localProgressSnapshot();
     syncCode = code;
     localStorage.setItem(SYNC_CODE_KEY, syncCode);
     document.getElementById('syncCodeText').textContent = syncCode;
-    setSyncStatus('불러왔어요! 이 기기에 반영됨.');
+    if (isMoreAdvanced(localP, cloudP)) {
+      // this device is already further ahead — keep it, and push it up so the code catches up
+      await pushSaveNow();
+      setSyncStatus('이 기기 진행 상황이 더 앞서 있어서, 이 기기 기록을 코드에 저장했어요.');
+    } else {
+      applyLoadedRow(row);
+      setSyncStatus('더 진행된 기록을 불러왔어요! 이 기기에 반영됨.');
+    }
     return true;
   } catch (e) {
     setSyncStatus('불러오기 실패 (네트워크)');
@@ -1144,8 +1171,9 @@ async function loadSaveByCode(code) {
   }
 }
 
-/* ----- Auto-sync-on-load: silently adopt another device's newer push so
-   two devices sharing a code stay unified without a manual "불러오기" ----- */
+/* ----- Auto-sync-on-load: on every app open, keep whichever side (local vs
+   cloud) is more advanced — no manual "불러오기" needed, and recency never
+   overrides actual progress. ----- */
 async function autoSyncOnLoad() {
   if (!syncCode) return;
   try {
@@ -1153,13 +1181,13 @@ async function autoSyncOnLoad() {
     const rows = await res.json();
     if (!res.ok || !Array.isArray(rows) || rows.length === 0) return;
     const row = rows[0];
-    const cloudTime = row.updated_at ? new Date(row.updated_at).getTime() : 0;
-    const lastSynced = parseInt(localStorage.getItem(LAST_SYNCED_KEY) || '0', 10);
-    if (cloudTime > lastSynced) {
+    const cloudP = progressScoreOf(row.dex, row.total_score);
+    const localP = localProgressSnapshot();
+    if (isMoreAdvanced(cloudP, localP)) {
       applyLoadedRow(row);
-      setSyncStatus('다른 기기의 최신 기록을 자동으로 불러왔어요.');
-    } else {
-      localStorage.setItem(LAST_SYNCED_KEY, String(Math.max(cloudTime, lastSynced)));
+      setSyncStatus('다른 기기의 더 진행된 기록을 자동으로 불러왔어요.');
+    } else if (isMoreAdvanced(localP, cloudP)) {
+      await pushSaveNow(); // this device is ahead — bring the cloud up to match
     }
   } catch (e) {
     // offline — keep playing on local data, next successful sync will reconcile
