@@ -81,6 +81,7 @@
   #shopGrid {
     display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px;
     overflow-y: auto; padding: 6px 2px; max-height: 56vh;
+    -webkit-overflow-scrolling: touch;
   }
   .shopCard {
     background: linear-gradient(180deg,#1e2f3d,#152029); border-radius: 10px; padding: 14px 12px; text-align: center;
@@ -93,8 +94,9 @@
   .shopCard .effect { font-size: 11px; color: #7fe0ff; }
   .shopCard .price { font-size: 12px; color: #ffd54f; }
   .shopCard button {
-    margin-top: 4px; padding: 6px 14px; border: none; border-radius: 7px; font-weight: bold; cursor: pointer;
+    margin-top: 4px; padding: 10px 14px; min-height: 40px; border: none; border-radius: 7px; font-weight: bold; cursor: pointer;
     background: linear-gradient(180deg,#5fd0ff,#2b9fe0); color: #00222e;
+    touch-action: manipulation; width: 100%;
   }
   .shopCard button:disabled { background: #3a4750; color: #7c8890; cursor: default; }
   #shopStatus { min-height: 16px; font-size: 12px; color: #ff8a80; text-align: center; }
@@ -1677,11 +1679,13 @@ function catchSuccess() {
   if (isTrophy) points = Math.round(points * 1.5);
   if (envState.weather === 'fog') points = Math.round(points * 1.15);
   const isBoosted = (economy.boosters.exp || 0) > 0;
-  if (isBoosted) { points = Math.round(points * 1.5); economy.boosters.exp -= 1; economy.totalBoosterUsed = (economy.totalBoosterUsed||0) + 1; updateBoosterBadge(); }
+  if (isBoosted) { points = Math.round(points * 1.5); economy.boosters.exp -= 1; economy.totalBoosterUsed = (economy.totalBoosterUsed||0) + 1; updateBoosterBadge(); bumpDailyProgress('boosterUsedCount', 1); }
   const streakMul = streakBonusMul();
   points = Math.round(points * streakMul);
   catchStreak += 1;
   updateStreakBadge();
+  bumpDailyMax('maxStreakToday', catchStreak);
+  if (currentFish.rarity === 'mythic') bumpDailyProgress('mythicCatchCount', 1);
   totalScore += points; saveScore();
   if (isTrophy) economy.trophyCatches = (economy.trophyCatches || 0) + 1;
 
@@ -1699,6 +1703,7 @@ function catchSuccess() {
   if (economy.autoSellCommon && currentFish.rarity === 'common') {
     autoSold = true;
     recordSale(sellValue);
+    bumpDailyProgress('sellCountToday', 1);
   } else {
     economy.stock[currentFish.name] = (economy.stock[currentFish.name] || 0) + 1;
     saveEconomy(); queueSyncPush();
@@ -2293,6 +2298,19 @@ function drawPattern(c, pattern, colors, len) {
   c.restore();
 }
 
+/* ----- MYTHIC aura: soft glow drawn behind the fish shape (static in dex thumbnails, pulsing in the hero canvas) ----- */
+function drawMythicAura(c, cx, cy, r, t) {
+  const pulse = t !== undefined ? (0.7 + 0.3*Math.sin(t*3)) : 1;
+  const g = c.createRadialGradient(cx, cy, 0, cx, cy, r);
+  g.addColorStop(0, `rgba(213,0,249,${0.55*pulse})`);
+  g.addColorStop(0.6, `rgba(170,0,255,${0.25*pulse})`);
+  g.addColorStop(1, 'rgba(170,0,255,0)');
+  c.save();
+  c.fillStyle = g;
+  c.beginPath(); c.arc(cx, cy, r, 0, Math.PI*2); c.fill();
+  c.restore();
+}
+
 function drawFishShape(c, def, len) {
   const colors = COLOR_PRESETS[def.colorKey];
   const grad = bodyGradient(c, colors, len);
@@ -2799,6 +2817,10 @@ function drawHeroFish() {
   }
   heroCtx.restore();
 
+  if (currentFish.rarity === 'mythic') {
+    drawMythicAura(heroCtx, heroCanvas.width/2, heroCanvas.height*0.46, 120, performance.now()/1000);
+  }
+
   heroCtx.save();
   heroCtx.translate(heroCanvas.width/2, heroCanvas.height*0.46);
   heroCtx.rotate(-0.12);
@@ -2820,6 +2842,7 @@ function dexFishImage(def, locked) {
     cx.fillStyle = '#5a6570'; cx.font = 'bold 18px sans-serif'; cx.textAlign = 'center'; cx.textBaseline = 'middle';
     cx.fillText('?', 36, 25);
   } else {
+    if (def.rarity === 'mythic') drawMythicAura(cx, 36, 25, 32);
     cx.save();
     cx.translate(36, 25);
     cx.rotate(-0.05);
@@ -2946,6 +2969,7 @@ function renderShop() {
     sellAllBtn.addEventListener('click', () => {
       economy.stock = {};
       recordSale(totalValue);
+      bumpDailyProgress('sellCountToday', totalCount);
       renderShop();
       setShopStatus(`재고를 모두 판매해 ${totalValue}크레딧을 받았어요.`);
     });
@@ -2972,6 +2996,7 @@ function renderShop() {
         economy.stock[name] -= 1;
         if (economy.stock[name] <= 0) delete economy.stock[name];
         recordSale(unitPrice);
+        bumpDailyProgress('sellCountToday', 1);
         renderShop();
         setShopStatus(`${name} 1마리를 팔아 ${unitPrice}크레딧을 받았어요.`);
       });
@@ -2981,6 +3006,7 @@ function renderShop() {
         const gained = unitPrice * count;
         delete economy.stock[name];
         recordSale(gained);
+        bumpDailyProgress('sellCountToday', count);
         renderShop();
         setShopStatus(`${name} ${count}마리를 팔아 ${gained}크레딧을 받았어요.`);
       });
@@ -3211,12 +3237,16 @@ updateStatusBar();
    Daily quests + login streak
 ========================================================= */
 const DAILY_QUEST_POOL = [
-  { id:'catch_any',     progressKey:'catchCount',          target:5,   reward:40, desc:(n)=>`오늘 물고기 ${n}마리 잡기` },
-  { id:'catch_rare',    progressKey:'rareCount',           target:1,   reward:60, desc:(n)=>`오늘 희귀(★3+) 어종 ${n}마리 잡기` },
-  { id:'catch_newdex',  progressKey:'newDexCount',         target:1,   reward:60, desc:(n)=>`오늘 도감에 새 어종 ${n}종 등록하기` },
-  { id:'earn_credits',  progressKey:'creditsEarnedToday',  target:100, reward:50, desc:(n)=>`오늘 크레딧 ${n} 획득하기` },
-  { id:'use_bait',      progressKey:'baitUsedCount',       target:1,   reward:40, desc:(n)=>`오늘 미끼 ${n}회 사용하기` },
-  { id:'catch_ocean',   progressKey:'oceanCount',          target:2,   reward:50, desc:(n)=>`오늘 태평양/대서양에서 ${n}마리 잡기` },
+  { id:'catch_any',     progressKey:'catchCount',          target:5,   reward:40,  desc:(n)=>`오늘 물고기 ${n}마리 잡기` },
+  { id:'catch_rare',    progressKey:'rareCount',           target:1,   reward:60,  desc:(n)=>`오늘 희귀(★3+) 어종 ${n}마리 잡기` },
+  { id:'catch_newdex',  progressKey:'newDexCount',         target:1,   reward:60,  desc:(n)=>`오늘 도감에 새 어종 ${n}종 등록하기` },
+  { id:'earn_credits',  progressKey:'creditsEarnedToday',  target:100, reward:50,  desc:(n)=>`오늘 크레딧 ${n} 획득하기` },
+  { id:'use_bait',      progressKey:'baitUsedCount',       target:1,   reward:40,  desc:(n)=>`오늘 미끼 ${n}회 사용하기` },
+  { id:'catch_ocean',   progressKey:'oceanCount',          target:2,   reward:50,  desc:(n)=>`오늘 태평양/대서양에서 ${n}마리 잡기` },
+  { id:'streak_hit',    progressKey:'maxStreakToday',      target:5,   reward:70,  desc:(n)=>`오늘 연속 포획 스트릭 ${n} 달성하기` },
+  { id:'mythic_catch',  progressKey:'mythicCatchCount',    target:1,   reward:150, desc:(n)=>`오늘 MYTHIC 등급 어종 ${n}마리 포획하기` },
+  { id:'sell_fish',     progressKey:'sellCountToday',      target:5,   reward:50,  desc:(n)=>`오늘 상점에서 물고기 ${n}마리 판매하기` },
+  { id:'use_booster',   progressKey:'boosterUsedCount',    target:1,   reward:50,  desc:(n)=>`오늘 경험치 부스터 ${n}회 사용하기` },
 ];
 function todayStr(d) {
   d = d || new Date();
@@ -3251,6 +3281,11 @@ function ensureDailyReset() {
 function bumpDailyProgress(key, amount) {
   ensureDailyReset();
   economy.dailyProgress[key] = (economy.dailyProgress[key]||0) + amount;
+  checkDailyQuestCompletion();
+}
+function bumpDailyMax(key, value) {
+  ensureDailyReset();
+  economy.dailyProgress[key] = Math.max(economy.dailyProgress[key]||0, value);
   checkDailyQuestCompletion();
 }
 function checkDailyQuestCompletion() {
