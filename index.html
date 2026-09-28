@@ -141,15 +141,6 @@
     position: absolute; right: -10px; bottom: -14px; width: 300px; height: 320px; pointer-events: none;
     filter: drop-shadow(0 6px 10px rgba(0,0,0,0.5));
     transform-origin: 70% 95%;
-    animation: rodIdle 3.4s ease-in-out infinite;
-  }
-  @keyframes rodIdle { 0%,100% { transform: rotate(0deg); } 50% { transform: rotate(-1.1deg); } }
-  #rodRig.flick { animation: rodFlick 0.45s cubic-bezier(.2,.9,.3,1); }
-  @keyframes rodFlick {
-    0%   { transform: rotate(0deg); }
-    22%  { transform: rotate(-11deg); }
-    55%  { transform: rotate(4deg); }
-    100% { transform: rotate(0deg); }
   }
 
   /* ---- Dex overlay ---- */
@@ -217,16 +208,17 @@
     font-size: 18px; font-weight: bold; display: none;
   }
 
-  #runWarning {
-    position: absolute; left: 50%; top: 46%; transform: translate(-50%,-50%);
-    color: #ff5252; font-size: 26px; font-weight: 900; letter-spacing: 1px;
-    text-shadow: 0 0 14px rgba(255,0,0,0.8); display: none; z-index: 14;
+  #failCard .failHint { font-size: 12px; font-weight: normal; color: #ffe0b2; margin-top: 6px; }
+
+  /* ---- Fight cue: telegraphs the fish's next move ---- */
+  #fightCue {
+    position: absolute; left: 50%; top: 27%; transform: translate(-50%,-50%);
+    font-size: 25px; font-weight: 900; letter-spacing: 1px; white-space: nowrap;
+    color: #fff; text-shadow: 0 0 14px var(--cue, #ff5252), 0 2px 4px rgba(0,0,0,0.8);
+    display: none; z-index: 14; pointer-events: none;
   }
-  #finalStandWarning {
-    position: absolute; left: 50%; top: 34%; transform: translate(-50%,-50%);
-    color: #ffee00; font-size: 30px; font-weight: 900; letter-spacing: 1px;
-    text-shadow: 0 0 18px rgba(255,238,0,0.9); display: none; z-index: 15;
-  }
+  #fightCue.pop { animation: cuePop 0.35s cubic-bezier(.2,1.4,.4,1); }
+  @keyframes cuePop { from { transform: translate(-50%,-50%) scale(1.5); opacity: 0.2; } to { transform: translate(-50%,-50%) scale(1); opacity: 1; } }
   #levelUpPopup {
     position: absolute; left: 50%; top: 40%; transform: translate(-50%,-50%) scale(0.7);
     display: none; z-index: 22; text-align: center; pointer-events: none;
@@ -289,7 +281,18 @@
   @keyframes mythicPulse { 0%,100% { opacity: 0.5; } 50% { opacity: 1; } }
 
   /* ---- Mobile-style bottom action bar ---- */
-  #mobileBar { width: 900px; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  #mobileBar { width: 900px; display: flex; align-items: center; justify-content: center; gap: 34px; padding-top: 4px; }
+  .ctlGroup { display: flex; flex-direction: column; align-items: center; gap: 5px; width: 200px; }
+  .ctlLabel { color: #9fb8c8; font-size: 11px; letter-spacing: 0.5px; }
+  .ctlRow { display: flex; align-items: center; gap: 8px; }
+  .ctlBtn {
+    width: 58px; height: 46px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.18); cursor: pointer;
+    background: linear-gradient(180deg,#27404f,#172833); color: #dff4ff; font-size: 18px; font-weight: 900;
+    user-select: none; touch-action: none; box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+  }
+  .ctlBtn.on, .ctlBtn:active { background: linear-gradient(180deg,#3d7fa0,#1f5470); transform: scale(0.95); }
+  #dragValue { min-width: 54px; text-align: center; color: #ffd54f; font-weight: 900; font-size: 16px; }
+  #centerCtl { display: flex; flex-direction: column; align-items: center; gap: 6px; }
   #powerGaugeWrap { width: 230px; height: 10px; background: rgba(255,255,255,0.12); border-radius: 6px; overflow: hidden; }
   #powerFill { height: 100%; width: 0%; background: linear-gradient(90deg,#ffd54f,#ff5252); }
   #actionBtn {
@@ -500,15 +503,14 @@
 
   <div id="stageWrap">
     <canvas id="game" width="900" height="560"></canvas>
-    <div id="msg">스페이스바 또는 버튼으로 캐스팅하세요</div>
-    <div id="runWarning">! 물고기가 저항한다 !</div>
-    <div id="finalStandWarning">필사의 저항!!</div>
+    <div id="msg">길게 눌러 캐스팅 · ◀▶로 방향 조준</div>
+    <div id="fightCue"></div>
     <div id="bossBanner">⚠️ 초대형 어종 출현 ⚠️</div>
     <div id="levelUpPopup">
       <div class="lu1">LEVEL UP</div>
       <div class="lu2">Lv.<span id="luNum">2</span></div>
       <div class="lu3" id="luTitle">낚시에 맛 들인 사람</div>
-      <div class="lu4" id="luBuff">저항 -2% · 성공존 +1.5% · 획득량 +1%</div>
+      <div class="lu4" id="luBuff">물고기 힘 -1% · 체력 소모 +1% · 릴 속도 +1%</div>
     </div>
 
     <div id="catchReveal">
@@ -538,18 +540,17 @@
           <stop offset="1" stop-color="#7c8890"/>
         </radialGradient>
       </defs>
-      <line x1="40" y1="300" x2="230" y2="40" stroke="url(#rodBlank)" stroke-width="16" stroke-linecap="round"/>
-      <line x1="40" y1="300" x2="230" y2="40" stroke="#241a10" stroke-width="16" stroke-linecap="round" opacity="0.18"/>
-      <line x1="46" y1="292" x2="224" y2="49" stroke="rgba(255,255,255,0.35)" stroke-width="2.4" stroke-linecap="round"/>
-      <g stroke="#1c130a" stroke-width="4" stroke-linecap="round" opacity="0.75">
-        <line x1="72" y1="256" x2="82" y2="242"/>
-        <line x1="108" y1="203" x2="118" y2="189"/>
-        <line x1="144" y1="150" x2="154" y2="136"/>
-        <line x1="180" y1="97" x2="190" y2="83"/>
+      <path class="rodCurve" d="M40 300 Q144.5 157 230 40" fill="none" stroke="url(#rodBlank)" stroke-width="16" stroke-linecap="round"/>
+      <path class="rodCurve" d="M40 300 Q144.5 157 230 40" fill="none" stroke="#241a10" stroke-width="16" stroke-linecap="round" opacity="0.18"/>
+      <path class="rodCurve" d="M40 300 Q144.5 157 230 40" fill="none" stroke="rgba(255,255,255,0.35)" stroke-width="2.4" stroke-linecap="round" transform="translate(1,-1)"/>
+      <g id="rodWraps" stroke="#1c130a" stroke-width="4" stroke-linecap="round" opacity="0.75">
+        <line/><line/><line/><line/>
       </g>
-      <circle cx="150" cy="140" r="4.5" fill="none" stroke="#111" stroke-width="2.4"/>
-      <circle cx="115" cy="192" r="5.5" fill="none" stroke="#111" stroke-width="2.6"/>
-      <circle cx="80" cy="245" r="6.5" fill="none" stroke="#111" stroke-width="2.8"/>
+      <g id="rodRings" fill="none" stroke="#111">
+        <circle r="4.5" stroke-width="2.4"/>
+        <circle r="5.5" stroke-width="2.6"/>
+        <circle r="6.5" stroke-width="2.8"/>
+      </g>
       <g transform="translate(58,262)">
         <ellipse cx="0" cy="0" rx="30" ry="34" fill="url(#reelBody)" stroke="#0c0f12" stroke-width="2"/>
         <circle cx="0" cy="-4" r="17" fill="url(#spoolGrad)" stroke="#3d454b" stroke-width="2"/>
@@ -564,8 +565,25 @@
   </div>
 
   <div id="mobileBar">
-    <div id="powerGaugeWrap"><div id="powerFill"></div></div>
-    <button id="actionBtn">낚시</button>
+    <div class="ctlGroup">
+      <div class="ctlLabel">낚싯대 방향 (A / D)</div>
+      <div class="ctlRow">
+        <button class="ctlBtn" id="rodLeftBtn">◀</button>
+        <button class="ctlBtn" id="rodRightBtn">▶</button>
+      </div>
+    </div>
+    <div id="centerCtl">
+      <div id="powerGaugeWrap"><div id="powerFill"></div></div>
+      <button id="actionBtn">캐스팅</button>
+    </div>
+    <div class="ctlGroup">
+      <div class="ctlLabel">드랙 (↑ / ↓ · 휠)</div>
+      <div class="ctlRow">
+        <button class="ctlBtn" id="dragDownBtn">−</button>
+        <div id="dragValue">55%</div>
+        <button class="ctlBtn" id="dragUpBtn">＋</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -593,6 +611,7 @@
       <button class="btn active" id="shopTabSell">🐟 판매</button>
       <button class="btn" id="shopTabReel">🎣 릴</button>
       <button class="btn" id="shopTabRod">🎋 낚싯대</button>
+      <button class="btn" id="shopTabLine">🧵 낚싯줄</button>
       <button class="btn" id="shopTabSkin">🎨 스킨</button>
       <button class="btn" id="shopTabBait">🪱 미끼</button>
       <button class="btn" id="shopTabBooster">🎒 소모품</button>
@@ -929,7 +948,7 @@ const BOSS_FISH = [
   ["범고래","boss",400,700,"whale","charcoal"],
   ["향고래","boss",600,1500,"whale","deepBlue"],
   ["대왕오징어","boss",300,700,"giant_squid","ink"],
-  /* Regional exclusives: 'mythic' tier, harder than boss (tighter zone, faster needle/tension) */
+  /* Regional exclusives: 'mythic' tier, harder than boss (stronger pull, deeper stamina) */
   ["이무기","mythic",600,1200,"slender","olive","lateral",false,["sea"]],
   ["돌묵상어","mythic",400,900,"shark","olive",null,false,["jeju"]],
   ["밍크고래","mythic",500,850,"whale","olive",null,false,["eastsea"]],
@@ -953,16 +972,240 @@ const COLOR_PRESETS = {
   ink:       { base:"#2a2a2e", light:"#5c5c62", dark:"#131315" },
 };
 
-/* ----- Difficulty: tougher timing/tension. 'boss' = special mega fish tier ----- */
+/* ----- Rarity tiers: scoring + bite window. Fight strength lives in RARITY_FIGHT below ----- */
 const RARITY = {
-  common:    { label:"COMMON",    color:"#b0bec5", stars:1, points:12,  hookWindow:0.68, zoneWidthRatio:0.27, needleSpeed:1.35, tensionRate:9.5,  gain:11 },
-  uncommon:  { label:"UNCOMMON",  color:"#4fc3f7", stars:2, points:36,  hookWindow:0.58, zoneWidthRatio:0.23, needleSpeed:1.55, tensionRate:9.8,  gain:10.5 },
-  rare:      { label:"RARE",      color:"#ba68c8", stars:3, points:95,  hookWindow:0.50, zoneWidthRatio:0.19, needleSpeed:1.75, tensionRate:10.3, gain:9.5 },
-  legendary: { label:"LEGENDARY", color:"#ffd54f", stars:4, points:300, hookWindow:0.44, zoneWidthRatio:0.17, needleSpeed:1.85, tensionRate:10.0, gain:9.5 },
-  boss:      { label:"BOSS",      color:"#ff3d3d", stars:5, points:900,  hookWindow:0.70, zoneWidthRatio:0.12, needleSpeed:2.05, tensionRate:10.0, gain:8.8 },
-  mythic:    { label:"MYTHIC",    color:"#d500f9", stars:5, points:1500, hookWindow:0.60, zoneWidthRatio:0.09, needleSpeed:2.40, tensionRate:10.8, gain:7.8 },
+  common:    { label:"COMMON",    color:"#b0bec5", stars:1, points:12,   hookWindow:0.68 },
+  uncommon:  { label:"UNCOMMON",  color:"#4fc3f7", stars:2, points:36,   hookWindow:0.58 },
+  rare:      { label:"RARE",      color:"#ba68c8", stars:3, points:95,   hookWindow:0.50 },
+  legendary: { label:"LEGENDARY", color:"#ffd54f", stars:4, points:300,  hookWindow:0.44 },
+  boss:      { label:"BOSS",      color:"#ff3d3d", stars:5, points:900,  hookWindow:0.70 },
+  mythic:    { label:"MYTHIC",    color:"#d500f9", stars:5, points:1500, hookWindow:0.60 },
 };
 const RARITY_WEIGHT = { common:44, uncommon:27, rare:19, legendary:10 };
+
+/* FIGHT-SIM-START */
+/* =========================================================
+   Fight physics (pure, no DOM): the fish is a self-propelled body on a
+   spring-like line. Tension = K * (distance - line out). The reel's drag lets
+   line slip once tension passes the drag setting, reeling shortens the line,
+   and the line snaps if tension (+ shock spikes) passes its strength.
+   Too tight snaps the line; too loose for too long lets the hook fall out.
+========================================================= */
+const FIGHT_K = 24;          // line+rod stiffness: tension units per metre of stretch
+const FIGHT_DT = 1/120;      // fixed physics step
+const RARITY_FIGHT = {
+  common:    { power:24, stamina:5.5, mass:1.0, speed:3.0, busy:0.40, slackLimit:2.4, netWindow:15 },
+  uncommon:  { power:31, stamina:7.5, mass:1.4, speed:3.4, busy:0.50, slackLimit:2.3, netWindow:13 },
+  rare:      { power:40, stamina:10,  mass:2.0, speed:3.8, busy:0.60, slackLimit:2.2, netWindow:12 },
+  legendary: { power:50, stamina:14,  mass:2.8, speed:4.2, busy:0.70, slackLimit:2.1, netWindow:10 },
+  boss:      { power:62, stamina:26,  mass:4.0, speed:4.6, busy:0.78, slackLimit:2.0, netWindow:9 },
+  mythic:    { power:72, stamina:31,  mass:5.0, speed:5.0, busy:0.85, slackLimit:1.9, netWindow:8 },
+};
+const FIGHT_STYLES = {
+  runner:  { run:3,   turn:2,   charge:1,   dive:0.5, jump:0.5 },
+  jumper:  { run:2,   turn:1.4, charge:0.8, dive:0.3, jump:2.4 },
+  diver:   { run:1,   turn:0.6, charge:0.7, dive:3 },
+  eel:     { run:1,   turn:1.6, charge:1.4, dive:2.2 },
+  brawler: { run:1.5, turn:1.6, charge:1.1, dive:1,   jump:0.4 },
+  drifter: { run:0.8, turn:1.2, charge:1.3, dive:1.8 },
+  giant:   { run:2.4, turn:1.2, charge:1,   dive:2,   jump:0.5 },
+};
+const FIGHT_STYLE_LABEL = {
+  runner:'장거리 질주형', jumper:'점프형', diver:'바닥 파고들기형', eel:'휘감기형',
+  brawler:'난타형', drifter:'끈질긴 버티기형', giant:'초대형 괴력형',
+};
+const BODY_STYLE = {
+  torpedo:'runner', shark:'giant', whale:'giant', slender:'eel', flat:'diver', spiny:'diver',
+  crab:'diver', shell:'diver', turtle:'diver', oval:'brawler', squid:'drifter',
+  giant_squid:'drifter', jellyfish:'drifter', shrimp:'drifter',
+};
+const JUMPER_RE = /새치|농어|연어|송어|배스|만새기|다랑어|방어|부시리|숭어|날치/;
+const BEH_INTENSITY = { cruise:0.4, tell:0.25, run:1.0, charge:0.75, turn:0.9, dive:0.7, jump:0.15 };
+
+function fightStyleOf(def) {
+  const base = BODY_STYLE[def.bodyType] || 'brawler';
+  if (base !== 'drifter' && JUMPER_RE.test(def.name)) return 'jumper';
+  return base;
+}
+
+function createFight(def, sizeRatio, gear, x, z) {
+  const rf = RARITY_FIGHT[def.rarity] || RARITY_FIGHT.common;
+  const sizeMul = 0.85 + 0.3*sizeRatio;
+  const styleKey = fightStyleOf(def);
+  const f = {
+    def, rf, gear, styleKey, style: FIGHT_STYLES[styleKey],
+    power: rf.power * sizeMul * gear.powerMul,
+    speed: rf.speed * (0.9 + 0.2*sizeRatio),
+    mass: rf.mass * sizeMul,
+    staminaMax: rf.stamina * sizeMul, stamina: rf.stamina * sizeMul,
+    x, z, vx:0, vz:0, depth:0.25,
+    L: Math.max(1, Math.hypot(x, z) - 0.25), tension:0, spike:0,
+    beh:'run', behT:1.1, queued:null, hx:0, hz:1, turnSign: Math.random() < 0.5 ? -1 : 1,
+    jumpT:0, jumpDur:0.9, slackT:0, snagT:0, lastStand:false, t:0,
+    paidOut:0, outcome:null, events:[],
+  };
+  headingFor(f);
+  return f;
+}
+
+function rot(x, z, a) { const c = Math.cos(a), s = Math.sin(a); return [x*c - z*s, x*s + z*c]; }
+
+function headingFor(f) {
+  const r = Math.max(0.5, Math.hypot(f.x, f.z));
+  const ux = f.x/r, uz = f.z/r;
+  let h;
+  switch (f.beh) {
+    case 'run':    h = rot(ux, uz, (Math.random()-0.5)*1.2); break;
+    case 'charge': h = rot(-ux, -uz, (Math.random()-0.5)*0.8); break;
+    case 'turn':   h = [f.turnSign, 0.3]; break;
+    case 'dive':   h = rot(ux, uz, (Math.random()-0.5)*0.6); break;
+    case 'tell':   h = [ux*0.3, uz*0.3]; break;
+    case 'jump':   h = [f.hx, f.hz]; break;
+    default: { const a = Math.random()*Math.PI*2; h = [Math.cos(a), Math.sin(a)*0.6 + 0.2]; }
+  }
+  const n = Math.hypot(h[0], h[1]) || 1;
+  f.hx = h[0]/n; f.hz = h[1]/n;
+}
+
+function setBehaviour(f, beh, dur) {
+  f.beh = beh; f.behT = dur;
+  if (beh === 'turn') f.turnSign *= -1;
+  if (beh === 'jump') { f.jumpT = 0; f.jumpDur = dur; f.depth = 0; }
+  headingFor(f);
+  f.events.push(beh);
+}
+
+function nextBehaviour(f) {
+  const sFrac = f.stamina / f.staminaMax;
+  if (f.queued) {                                // a telegraphed move follows its 'tell'
+    const q = f.queued; f.queued = null;
+    if (q === 'run') {
+      // run-start jerk: worse with a tight drag, halved if the player has let go of the reel
+      const tight = f.lastDrag || 0.5;
+      f.spike += f.power * 0.55 * (1 - f.gear.absorb) * (0.4 + tight) * (f.lastReeling ? 1 : 0.5);
+      setBehaviour(f, 'run', 1.1 + Math.random()*1.1);
+    } else setBehaviour(f, 'jump', 0.9);
+    return;
+  }
+  if (sFrac < 0.15) { setBehaviour(f, 'cruise', 1 + Math.random()); return; }
+  const busy = f.rf.busy;
+  const w = { cruise: (1 - busy) * 4 };
+  for (const k in f.style) w[k] = f.style[k] * busy;
+  if (f.depth > 0.5) w.jump = 0;
+  let total = 0; for (const k in w) total += w[k];
+  let roll = Math.random() * total, pick = 'cruise';
+  for (const k in w) { roll -= w[k]; if (roll <= 0) { pick = k; break; } }
+  if (pick === 'run' || pick === 'jump') {
+    f.queued = pick;
+    setBehaviour(f, 'tell', pick === 'jump' ? 0.5 : 0.6);
+  } else if (pick === 'charge') setBehaviour(f, 'charge', 0.8 + Math.random()*0.7);
+  else if (pick === 'dive')   setBehaviour(f, 'dive', 1.4 + Math.random()*1.1);
+  else if (pick === 'turn')   setBehaviour(f, 'turn', 0.9 + Math.random()*0.7);
+  else setBehaviour(f, 'cruise', 1.1 + Math.random()*1.4);
+}
+
+/* inp = { reeling:bool, rodDir:-1..1, drag:0..1 } */
+function fightStep(f, inp, dt) {
+  if (f.outcome) return;
+  const g = f.gear;
+  f.t += dt;
+  f.lastDrag = inp.drag; f.lastReeling = !!inp.reeling;
+  f.behT -= dt;
+  if (f.beh === 'jump') f.jumpT += dt;
+  if (f.behT <= 0) nextBehaviour(f);
+
+  let r = Math.max(0.5, Math.hypot(f.x, f.z));
+  let ux = f.x/r, uz = f.z/r;
+  const sFrac = Math.max(0, f.stamina / f.staminaMax);
+  const tired = sFrac < 0.15;
+  const inten = BEH_INTENSITY[f.beh] * (tired ? 0.3 : 1);
+  const sf = 0.35 + 0.65*sFrac;
+  const thrust = f.power * inten * sf;
+  const vmax = Math.max(0.4, f.speed * inten * sf);
+
+  // keep the fish inside the visible water: steer back when drifting too wide or too far
+  if (Math.abs(f.x) > f.z*0.75 + 5) { f.hx = -Math.sign(f.x)*0.8; f.hz = 0.6; }
+  if (f.z > 70) f.hz = -Math.abs(f.hz);
+  if (f.z < 1.5 && f.hz < 0) f.hz = 0.4;
+
+  const T0 = Math.max(0, FIGHT_K * (r - f.L));
+  const airborne = f.beh === 'jump';
+  const selfFx = airborne ? 0 : thrust * (f.hx*vmax - f.vx) / vmax;
+  const selfFz = airborne ? 0 : thrust * (f.hz*vmax - f.vz) / vmax;
+  const side = inp.rodDir * T0 * 0.2;
+  const ax = (selfFx - T0*ux + side) * 0.12 / f.mass - 0.9*f.vx;
+  const az = (selfFz - T0*uz) * 0.12 / f.mass - 0.9*f.vz;
+  f.vx += ax*dt; f.vz += az*dt;
+  if (airborne) { f.vx *= (1 - 0.6*dt); f.vz *= (1 - 0.6*dt); }
+  f.x += f.vx*dt; f.z = Math.max(1, f.z + f.vz*dt);
+
+  r = Math.max(0.5, Math.hypot(f.x, f.z));
+  // reel in, then let the drag slip if the line is over the drag setting
+  if (inp.reeling) f.L = Math.max(0.8, f.L - g.reelSpeed * g.reelMul * dt);
+  const dragLimit = g.maxDrag * inp.drag;
+  let T = Math.max(0, FIGHT_K * (r - f.L));
+  if (T > dragLimit) {
+    const newL = r - dragLimit / FIGHT_K;
+    f.paidOut += newL - f.L;
+    f.L = newL; T = dragLimit;
+  }
+
+  // shock loads: reeling while the fish is in the air, plus run-start jerks (queued above)
+  if (airborne && inp.reeling) {
+    const phase = Math.min(1, f.jumpT / f.jumpDur);
+    f.spike = Math.max(f.spike, f.power * 0.95 * (1 - g.absorb) * (0.55 + 0.45*Math.sin(phase*Math.PI)));
+  }
+  f.spike = Math.max(0, f.spike - f.spike*5*dt);
+  f.tension = T + f.spike;
+
+  // stamina: line pressure tires the fish (pressure past its own pull only drags it, no extra
+  // fatigue), more so when the rod leans against its swim direction
+  const sx = Math.max(-1, Math.min(1, f.vx / 1.5));
+  const opp = Math.max(0, -inp.rodDir * sx), same = Math.max(0, inp.rodDir * sx);
+  const sideMul = 1 + 1.0*opp - 0.35*same;
+  f.sideGood = opp > 0.25; f.sideBad = same > 0.25;
+  f.stamina -= ((Math.min(T, f.power)/32) * sideMul * (1 + g.pressure) * g.drainMul + 0.1*inten) * dt;
+  if (T < 6) f.stamina += 0.3 * dt;
+  f.stamina = Math.min(f.staminaMax, Math.max(0, f.stamina));
+
+  // depth: diving pulls the fish down; line tension lifts it back up
+  if (f.beh === 'dive' && !tired) f.depth += 0.4 * dt;
+  else if (!airborne) f.depth += (0.3 - f.depth) * 0.15 * dt;
+  f.depth = Math.max(0, Math.min(1, f.depth - (T/100) * 0.35 * dt));
+
+  // boss last stand: once, when nearly beaten
+  if ((f.def.rarity === 'boss' || f.def.rarity === 'mythic') && !f.lastStand && sFrac < 0.3) {
+    f.lastStand = true;
+    f.stamina += f.staminaMax * 0.15;
+    f.events.push('laststand');
+    f.queued = 'run'; setBehaviour(f, 'tell', 0.6);
+  }
+
+  // fail / land conditions
+  if (f.tension > g.strength) { f.outcome = 'snapped'; return; }
+  if (f.tension < 2) f.slackT += dt * (inp.reeling ? 0.5 : 1); else f.slackT = Math.max(0, f.slackT - dt*2);
+  if (f.slackT > f.rf.slackLimit) { f.outcome = 'unhooked'; return; }
+  if (f.depth >= 0.98 && T < 22) f.snagT += dt; else f.snagT = Math.max(0, f.snagT - dt);
+  if (f.snagT > 2.5) { f.outcome = 'snagged'; return; }
+  if (f.L > g.capacity) { f.outcome = 'spooled'; return; }
+  if (r < 3.5 && sFrac < 0.12 && !airborne) { f.outcome = 'landing'; return; }
+  if (r < 4 && sFrac >= 0.12 && f.beh !== 'run' && f.beh !== 'tell' && !airborne) {
+    f.queued = 'run'; setBehaviour(f, 'tell', 0.45); f.events.push('underfoot');
+  }
+}
+
+/* after a missed net swipe the fish bolts again with a bit of stamina back */
+function fightResumeAfterNetMiss(f) {
+  f.outcome = null;
+  f.stamina = Math.min(f.staminaMax, f.stamina + f.staminaMax * 0.22);
+  f.slackT = 0; f.snagT = 0;
+  const r = Math.max(0.5, Math.hypot(f.x, f.z));
+  f.vx = f.x/r * f.speed * 0.8; f.vz = f.z/r * f.speed * 0.8;   // bolts straight away from the net
+  f.L = Math.max(1, r - 0.3);
+  f.queued = null; setBehaviour(f, 'run', 1.2);
+}
+/* FIGHT-SIM-END */
+
 const BOSS_CHANCE_BASE = 0.055;
 
 /* ----- Region registry: drives location buttons, dex tabs, spawn pool & boss eligibility ----- */
@@ -1034,12 +1277,12 @@ function titleForLevel(lv) {
   return t.title;
 }
 
-/* ----- Continuous per-level catching buffs: every single level-up nudges these ----- */
+/* ----- Continuous per-level fighting buffs: every single level-up nudges these ----- */
 function getTier(lv) {
-  const tensionMul = Math.max(0.60, 1 - (lv-1)*0.02);
-  const zoneMul = Math.min(1.6, 1 + (lv-1)*0.015);
-  const gainMul = Math.min(1.4, 1 + (lv-1)*0.01);
-  return { tensionMul, zoneMul, gainMul, title: titleForLevel(lv) };
+  const powerMul = Math.max(0.85, 1 - (lv-1)*0.01);   // fish pull
+  const drainMul = Math.min(1.3, 1 + (lv-1)*0.01);     // how fast line pressure tires the fish
+  const reelMul = Math.min(1.25, 1 + (lv-1)*0.008);    // winding speed
+  return { powerMul, drainMul, reelMul, title: titleForLevel(lv) };
 }
 
 /* =========================================================
@@ -1126,7 +1369,8 @@ function progressScoreOf(dexBlob, totalScoreVal) {
     score: totalScoreVal || 0,
     dexCount: entries.length,
     equipTier: Math.max(0, REEL_TIERS.findIndex(t => t.id === econ.equippedReel))
-             + Math.max(0, ROD_TIERS.findIndex(t => t.id === econ.equippedRod)),
+             + Math.max(0, ROD_TIERS.findIndex(t => t.id === econ.equippedRod))
+             + Math.max(0, LINE_TIERS.findIndex(t => t.id === econ.equippedLine)),
     skinsOwned: (econ.rodSkins ? econ.rodSkins.length : 0) + (econ.reelSkins ? econ.reelSkins.length : 0),
     credits: econ.credits || 0,
   };
@@ -1210,17 +1454,26 @@ async function ensureSyncCode() {
    Shop economy: credits + reel/rod/bait gear
    (persisted inside dex.__economy so no DB schema change is needed)
 ========================================================= */
+/* reel: winding speed (m/s), max drag, spool capacity (m) */
 const REEL_TIERS = [
-  { id:'basic',  name:'초보 릴',   icon:'🎣', price:0,    tensionCut:0.00 },
-  { id:'mid',    name:'중수 릴',   icon:'🎣', price:300,  tensionCut:0.08 },
-  { id:'high',   name:'고수 릴',   icon:'🎣', price:900,  tensionCut:0.16 },
-  { id:'master', name:'마스터 릴', icon:'🎣', price:2200, tensionCut:0.24 },
+  { id:'basic',  name:'초보 릴',   icon:'🎣', price:0,    reelSpeed:2.6, maxDrag:90,  capacity:70 },
+  { id:'mid',    name:'중수 릴',   icon:'🎣', price:300,  reelSpeed:3.0, maxDrag:100, capacity:90 },
+  { id:'high',   name:'고수 릴',   icon:'🎣', price:900,  reelSpeed:3.5, maxDrag:112, capacity:115 },
+  { id:'master', name:'마스터 릴', icon:'🎣', price:2200, reelSpeed:4.0, maxDrag:125, capacity:140 },
 ];
+/* rod: absorb = share of shock spikes the blank soaks up, pressure = extra fatigue it puts on the fish */
 const ROD_TIERS = [
-  { id:'basic',  name:'초보 낚싯대',   icon:'🎋', price:0,    gainBoost:0.00 },
-  { id:'mid',    name:'중수 낚싯대',   icon:'🎋', price:300,  gainBoost:0.08 },
-  { id:'high',   name:'고수 낚싯대',   icon:'🎋', price:900,  gainBoost:0.16 },
-  { id:'master', name:'마스터 낚싯대', icon:'🎋', price:2200, gainBoost:0.24 },
+  { id:'basic',  name:'초보 낚싯대',   icon:'🎋', price:0,    absorb:0.00, pressure:0.00 },
+  { id:'mid',    name:'중수 낚싯대',   icon:'🎋', price:300,  absorb:0.10, pressure:0.08 },
+  { id:'high',   name:'고수 낚싯대',   icon:'🎋', price:900,  absorb:0.20, pressure:0.16 },
+  { id:'master', name:'마스터 낚싯대', icon:'🎋', price:2200, absorb:0.30, pressure:0.25 },
+];
+/* line: breaking strength, same units as tension/drag */
+const LINE_TIERS = [
+  { id:'basic',  name:'나일론 3호',  icon:'🧵', price:0,    strength:70 },
+  { id:'mid',    name:'카본 4호',    icon:'🧵', price:350,  strength:82 },
+  { id:'high',   name:'PE 3호',      icon:'🧵', price:1000, strength:95 },
+  { id:'master', name:'마스터 PE 5호', icon:'🧵', price:2400, strength:110 },
 ];
 /* ----- Bait: count-based consumable, 1 unit spent per cast while equipped (no timer) ----- */
 const BAIT_TYPES = {
@@ -1283,6 +1536,7 @@ const REEL_SKIN_TIERS = [
 function defaultEconomy() {
   return {
     credits:0, reels:['basic'], rods:['basic'], equippedReel:'basic', equippedRod:'basic',
+    lines:['basic'], equippedLine:'basic',
     baits:{ basic:0, boss:0, trophy:0 }, equippedBait:null,
     boosters:{ exp:0, insurance:0 },
     rodSkins:['classic'], equippedRodSkin:'classic',
@@ -1315,6 +1569,7 @@ if (!economy.dexRewardsClaimed) economy.dexRewardsClaimed = [];
 if (economy.nickname == null) economy.nickname = '';
 function saveEconomy() { localStorage.setItem('fishingEconomyV1', JSON.stringify(economy)); }
 function reelTierById(id) { return REEL_TIERS.find(r => r.id === id) || REEL_TIERS[0]; }
+function lineTierById(id) { return LINE_TIERS.find(r => r.id === id) || LINE_TIERS[0]; }
 function rodTierById(id) { return ROD_TIERS.find(r => r.id === id) || ROD_TIERS[0]; }
 function rodSkinById(id) { return ROD_SKIN_TIERS.find(s => s.id === id) || ROD_SKIN_TIERS[0]; }
 function reelSkinById(id) { return REEL_SKIN_TIERS.find(s => s.id === id) || REEL_SKIN_TIERS[0]; }
@@ -1331,11 +1586,18 @@ function applySkin() {
   setStops('spoolGrad', reelSkin.spool);
   const deco = document.getElementById('skinDeco');
   if (deco) deco.innerHTML = rodSkin.deco || '';
+  decoParts = null;
 }
-function equipmentBuffs() {
+/* everything fightStep needs from equipment + player level */
+function fightGear() {
+  const reelT = reelTierById(economy.equippedReel);
+  const rodT = rodTierById(economy.equippedRod);
+  const lineT = lineTierById(economy.equippedLine);
+  const tier = getTier(playerLevel());
   return {
-    tensionMul: 1 - reelTierById(economy.equippedReel).tensionCut,
-    gainMul: 1 + rodTierById(economy.equippedRod).gainBoost,
+    reelSpeed: reelT.reelSpeed, maxDrag: reelT.maxDrag, capacity: reelT.capacity,
+    absorb: rodT.absorb, pressure: rodT.pressure, strength: lineT.strength,
+    powerMul: tier.powerMul, drainMul: tier.drainMul, reelMul: tier.reelMul,
   };
 }
 /* ----- Fish sell pricing: rarity tier baseline scaled by how large the catch was ----- */
@@ -1409,6 +1671,13 @@ const SFX = {
   levelUp: () => { [523,659,784,1046,1318].forEach((f,i) => beep(f, 0.14, 'triangle', 0.14, i*0.07)); },
   achievement: () => { [660,880,1100].forEach((f,i) => beep(f, 0.15, 'sine', 0.13, i*0.08)); },
   ui: () => beep(700, 0.05, 'sine', 0.07),
+  dragClick: () => beep(2300 + Math.random()*400, 0.018, 'square', 0.035),
+  reelTick: () => beep(1250, 0.014, 'square', 0.022),
+  lineCreak: () => sweepBeep(190, 120, 0.12, 'sawtooth', 0.035),
+  run: () => { sweepBeep(420, 160, 0.22, 'sawtooth', 0.06); },
+  jump: () => { sweepBeep(260, 70, 0.35, 'sine', 0.16); beep(140, 0.12, 'triangle', 0.1, 0.05); },
+  net: () => { sweepBeep(900, 300, 0.12, 'triangle', 0.1); },
+  snap: () => { beep(2200, 0.03, 'square', 0.12); sweepBeep(900, 60, 0.25, 'sawtooth', 0.12); },
 };
 function toggleSound() {
   soundEnabled = !soundEnabled;
@@ -1431,21 +1700,20 @@ let castBaitType = null;
 let castBoosterActive = false;
 let lastTime = performance.now();
 const rod = { tipX: W - 60, tipY: H - 210 };
-let bobber = { x: W/2, y: HORIZON + 60, targetX: W/2, targetY: HORIZON + 60, _power: 0 };
+let bobber = { x: W/2, y: HORIZON + 60, targetX: W/2, targetY: HORIZON + 60, _power: 0, wx: 0, wz: 12 };
 
 let state = 'idle';
 let waitTimer = 0, biteTimer = 0, resultTimer = 0, shake = 0;
 let currentFish = null;
 let catchStreak = 0; // consecutive successful catches without a real failure (insurance saves preserve it)
 function streakBonusMul() { return 1 + Math.min(0.30, catchStreak * 0.02); }
-let reel = {
-  progress:0, tension:0, needleT:0, zoneStart:0.4, zoneWidth:0.3, flashT:0,
-  runActive:false, runTimer:0, nextRunAt:0,
-  finalStand:false, finalStandDone:false, _finalStandStarted:false, _finalStandTimer:0,
-  phase:'bar', mashProgress:0, mashTimer:0, mashTimerMax:0,
-};
-const MASH_THRESHOLD = 82;
-function usesMashFinisher(rarity) { return rarity === 'legendary' || rarity === 'boss' || rarity === 'mythic'; }
+let fight = null;                 // fightStep state while reeling / landing
+const fightInput = { reeling:false, rodDir:0, drag:0.55 };
+let physAcc = 0;                  // fixed-step accumulator for fightStep
+let landing = null;               // net-timing state while state === 'landing'
+let rodDirSmooth = 0;             // eased rod lean (-1 left .. 1 right), also aims the cast
+let cueKey = '';
+let fightSound = { paid:0, reeled:0, creakT:0 };
 let resultData = null;
 let ripples = [];
 
@@ -1528,38 +1796,106 @@ function drawCastParticles() {
   ctx.shadowBlur = 0;
 }
 
-let spaceJustPressed = false;
-window.addEventListener('keydown', e => {
-  if (e.key === ' ') { e.preventDefault(); if (!e.repeat) spaceJustPressed = true; }
-});
+/* =========================================================
+   Input. One held "action" (space / main button / pressing the water):
+   idle = hold to charge + release to cast · bite = press to strike ·
+   reeling = hold to wind · landing = tap to swing the net.
+   Plus rod lean (A/D, ←/→, ◀▶, mouse over the water) and drag (↑/↓, W/S, wheel, −/+).
+========================================================= */
+let actionHeld = false;
+let actionPressed = false;        // edge: went down since the last frame
+const heldSources = new Set();
+function actionDown(src) {
+  if (heldSources.has(src)) return;
+  if (!actionHeld) actionPressed = true;
+  heldSources.add(src);
+  actionHeld = true;
+}
+function actionUp(src) {
+  heldSources.delete(src);
+  actionHeld = heldSources.size > 0;
+}
 
-/* ---- mobile action button: press-and-hold on idle charges cast power ---- */
 let charging = false;
 let castPower = 0;
+const rodKeys = { left:false, right:false };
+let rodBtnDir = 0;
+let mouseRodDir = null;           // set while a mouse hovers the water
+function rodDirTarget() {
+  const k = (rodKeys.right ? 1 : 0) - (rodKeys.left ? 1 : 0);
+  if (k) return k;
+  if (rodBtnDir) return rodBtnDir;
+  return mouseRodDir == null ? 0 : mouseRodDir;
+}
+
+function clampDrag(v) { return Math.max(0.1, Math.min(1, Math.round(v*20)/20)); }
+let dragSetting = clampDrag(parseFloat(localStorage.getItem('fishingDragV1')) || 0.55);
+function setDrag(v) {
+  const next = clampDrag(v);
+  if (next === dragSetting) return;
+  dragSetting = next;
+  try { localStorage.setItem('fishingDragV1', String(dragSetting)); } catch (e) {}
+  updateDragLabel();
+  SFX.ui();
+}
+function updateDragLabel() {
+  const g = fightGear();
+  const force = g.maxDrag * dragSetting;
+  const el = document.getElementById('dragValue');
+  el.textContent = `${Math.round(dragSetting*100)}%`;
+  el.style.color = force >= g.strength ? '#ff5252' : force >= g.strength*0.8 ? '#ffab40' : '#ffd54f';
+  el.title = `드랙 ${Math.round(force)} / 줄 강도 ${g.strength}`;
+}
+
+function isTypingTarget(e) { return e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA'); }
+window.addEventListener('keydown', e => {
+  if (isTypingTarget(e)) return;
+  const k = e.key;
+  if (k === ' ') { e.preventDefault(); if (!e.repeat) actionDown('key'); }
+  else if (k === 'a' || k === 'A' || k === 'ArrowLeft') { e.preventDefault(); rodKeys.left = true; }
+  else if (k === 'd' || k === 'D' || k === 'ArrowRight') { e.preventDefault(); rodKeys.right = true; }
+  else if (k === 'w' || k === 'W' || k === 'ArrowUp') { e.preventDefault(); setDrag(dragSetting + 0.05); }
+  else if (k === 's' || k === 'S' || k === 'ArrowDown') { e.preventDefault(); setDrag(dragSetting - 0.05); }
+});
+window.addEventListener('keyup', e => {
+  const k = e.key;
+  if (k === ' ') actionUp('key');
+  else if (k === 'a' || k === 'A' || k === 'ArrowLeft') rodKeys.left = false;
+  else if (k === 'd' || k === 'D' || k === 'ArrowRight') rodKeys.right = false;
+});
+window.addEventListener('blur', () => {
+  heldSources.clear(); actionHeld = false;
+  rodKeys.left = rodKeys.right = false; rodBtnDir = 0;
+});
+
+function bindHold(el, down, up) {
+  el.addEventListener('pointerdown', e => { e.preventDefault(); try { el.setPointerCapture(e.pointerId); } catch (_) {} down(e); });
+  for (const ev of ['pointerup', 'pointercancel', 'lostpointercapture']) el.addEventListener(ev, e => { up(e); });
+}
 const actionBtn = document.getElementById('actionBtn');
-function startCastWithPower() {
-  const power = castPower;
-  castPower = 0;
-  document.getElementById('powerFill').style.width = '0%';
-  startCast(power);
-}
-function onPressStart(e) {
-  e.preventDefault();
-  if (state === 'idle') charging = true;
-  else spaceJustPressed = true;
-}
-function onPressEnd(e) {
-  e.preventDefault();
-  if (charging) { charging = false; startCastWithPower(); }
-}
-actionBtn.addEventListener('pointerdown', onPressStart);
-actionBtn.addEventListener('pointerup', onPressEnd);
-actionBtn.addEventListener('pointerleave', onPressEnd);
-// clicking directly on the water also counts as a tap (used heavily in the mash finisher below)
+bindHold(actionBtn, () => actionDown('btn'), () => actionUp('btn'));
+bindHold(canvas, () => actionDown('canvas'), () => actionUp('canvas'));
 canvas.style.cursor = 'pointer';
-canvas.addEventListener('pointerdown', onPressStart);
-canvas.addEventListener('pointerup', onPressEnd);
-canvas.addEventListener('pointerleave', onPressEnd);
+canvas.addEventListener('pointermove', e => {
+  if (e.pointerType !== 'mouse') return;
+  const rect = canvas.getBoundingClientRect();
+  const x = (e.clientX - rect.left) * (W / rect.width);
+  const v = (x - WATER_CX) / 240;
+  mouseRodDir = Math.abs(v) < 0.18 ? 0 : Math.max(-1, Math.min(1, v));
+});
+canvas.addEventListener('pointerleave', () => { mouseRodDir = null; });
+canvas.addEventListener('wheel', e => {
+  e.preventDefault();
+  setDrag(dragSetting + (e.deltaY < 0 ? 0.05 : -0.05));
+}, { passive:false });
+bindHold(document.getElementById('rodLeftBtn'), () => { rodBtnDir = -1; }, () => { if (rodBtnDir === -1) rodBtnDir = 0; });
+bindHold(document.getElementById('rodRightBtn'), () => { rodBtnDir = 1; }, () => { if (rodBtnDir === 1) rodBtnDir = 0; });
+document.getElementById('dragUpBtn').addEventListener('click', () => setDrag(dragSetting + 0.05));
+document.getElementById('dragDownBtn').addEventListener('click', () => setDrag(dragSetting - 0.05));
+
+function vibrate(pattern) {
+  try { if (navigator.vibrate) navigator.vibrate(pattern); } catch (e) {}
+}
 
 /* ----- Night/weather-exclusive species: tuple[8] = {night:true} or {weather:'fog'|'rain'} ----- */
 function conditionMet(cond) {
@@ -1596,6 +1932,35 @@ function starsStr(n) { return '★'.repeat(n) + '☆'.repeat(5-n); }
 /* =========================================================
    Game flow
 ========================================================= */
+/* ----- Wind: drifts the cast sideways; strongest in the rain ----- */
+function windSpeed() {
+  const bucket = Math.floor(Date.now() / (6*60*1000));
+  const dir = Math.sin(bucket * 7.137 + 1.3);
+  const strength = envState.weather === 'rain' ? 2.4 : envState.weather === 'fog' ? 0.4 : 1.1;
+  return Math.round(dir * strength * 10) / 10;
+}
+/* cast landing point in water-space metres (x = sideways, z = distance out) */
+function castTargetFor(power, aim) {
+  const z = 8 + (power/100) * 24;
+  const x = aim * (3 + z*0.45) + windSpeed() * (0.6 + z*0.05);
+  return { x, z };
+}
+
+/* ----- Feeding hotspots: boiling water where fish school; casting near one bites faster ----- */
+let hotspots = [];
+function spawnHotspot() {
+  hotspots.push({ x: (Math.random()-0.5)*18, z: 11 + Math.random()*20, t: 0, life: 14 + Math.random()*10, seed: Math.random()*100 });
+}
+function updateHotspots(dt) {
+  for (const h of hotspots) h.t += dt;
+  hotspots = hotspots.filter(h => h.t < h.life);
+  if (hotspots.length < 2 && Math.random() < dt * 0.12) spawnHotspot();
+}
+function hotspotNear(x, z) {
+  return hotspots.find(h => Math.hypot(h.x - x, h.z - z) < 4.5 && h.t < h.life - 1);
+}
+let castHot = false;
+
 function startCast(power) {
   power = power || 0;
   state = 'casting';
@@ -1611,20 +1976,27 @@ function startCast(power) {
     bumpDailyProgress('baitUsedCount', 1);
     checkAchievements();
   }
-  const reach = 0.46 + (power/100)*0.12;
-  bobber.targetX = W * 0.28 + Math.random() * W * reach;
-  bobber.targetY = HORIZON + 30 + Math.random() * (H - HORIZON - 90);
+  const tgt = castTargetFor(power, rodDirSmooth);
+  const scatter = 1.2 + (power/100) * 1.3;
+  bobber.wx = tgt.x + (Math.random()-0.5) * 2 * scatter;
+  bobber.wz = Math.max(6, tgt.z + (Math.random()-0.5) * 2 * scatter);
+  // keep it on visible water
+  bobber.wx = Math.max(-(bobber.wz*0.75 + 4), Math.min(bobber.wz*0.75 + 4, bobber.wx));
+  const sp = worldToScreen(bobber.wx, bobber.wz);
+  bobber.targetX = sp.x; bobber.targetY = sp.y;
   bobber._sx = rod.tipX; bobber._sy = rod.tipY; bobber._t = 0;
   bobber._power = power;
-  setMsg("풍덩! 입질을 기다리는 중...");
-  const rig = document.getElementById('rodRig');
-  rig.classList.remove('flick'); void rig.offsetWidth; rig.classList.add('flick');
+  castHot = !!hotspotNear(bobber.wx, bobber.wz);
+  setMsg(castHot ? "물고기 떼 한가운데! 입질이 빨라요..." : "풍덩! 입질을 기다리는 중...");
+  flickT = 0;
+  rope = null;
   SFX.cast();
   spawnCastEffect();
 }
 function beginWaiting() {
-  state = 'waiting'; waitTimer = 2 + Math.random() * 4.5;
+  state = 'waiting'; waitTimer = (2 + Math.random() * 4.5) * (castHot ? 0.45 : 1);
   ripples.push({ x: bobber.x, y: bobber.y, t: 0 });
+  spawnSplash(bobber.x, bobber.y, 8, 0.6);
   SFX.splash();
 }
 
@@ -1638,6 +2010,7 @@ function triggerBite() {
   const bossPool = BOSS_FISH.filter(f => !f[8] || f[8].includes(spot));
   const f = isBoss ? bossPool[Math.floor(Math.random()*bossPool.length)] : pickWeightedFish();
   currentFish = fishDef(f);
+  currentFish.sizeRatio = Math.random();   // rolled at the bite: bigger fish fight harder
   const isMythic = currentFish.rarity === 'mythic';
   biteTimer = RARITY[currentFish.rarity].hookWindow * mods.hookWindowMul;
   shake = isBoss ? 18 : 8;
@@ -1645,34 +2018,65 @@ function triggerBite() {
   banner.style.display = isBoss ? 'block' : 'none';
   banner.classList.toggle('mythicBanner', isMythic);
   banner.textContent = isMythic ? '💀 전설의 괴수 출현 💀' : '⚠️ 초대형 어종 출현 ⚠️';
-  setMsg(isMythic ? "!! 전설의 괴수다 – 지금이다 !!" : isBoss ? "!! 초대형 어종이다 – 지금이다 !!" : "지금이다! 탭하세요!");
+  setMsg(isMythic ? "!! 전설의 괴수다 – 지금 챔질 !!" : isBoss ? "!! 초대형 어종이다 – 지금 챔질 !!" : "지금이다! 챔질!");
   if (isMythic) SFX.mythicAlert(); else if (isBoss) SFX.bossAlert(); else SFX.bite();
+  vibrate(isBoss ? [60, 40, 60] : 35);
 }
 
 function beginReeling() {
   state = 'reeling';
   const isBoss = currentFish.rarity === 'boss' || currentFish.rarity === 'mythic';
-  const conf = RARITY[currentFish.rarity];
-  const tier = getTier(playerLevel());
-  reel.progress = 0; reel.tension = 0; reel.needleT = Math.random()*10;
-  reel.zoneWidth = Math.min(0.5, conf.zoneWidthRatio * tier.zoneMul);
-  reel.zoneStart = Math.random() * (1 - reel.zoneWidth);
-  reel.runActive = false; reel.runTimer = 0;
-  reel.nextRunAt = isBoss ? 0.9 + Math.random()*0.6 : 1.4 + Math.random()*1.6;
-  reel.finalStand = false; reel.finalStandDone = false; reel._finalStandStarted = false;
-  reel.phase = 'bar'; reel.mashProgress = 0; reel.mashTimer = 0;
+  fight = createFight(currentFish, currentFish.sizeRatio, fightGear(), bobber.wx, bobber.wz);
+  physAcc = 0; landing = null; cueKey = '';
+  fightSound = { paid:0, reeled:0, creakT:0 };
   document.getElementById('bossBanner').style.display = 'none';
   const isMythic = currentFish.rarity === 'mythic';
   document.getElementById('stageWrap').classList.toggle('bossMode', isBoss && !isMythic);
   document.getElementById('stageWrap').classList.toggle('mythicMode', isMythic);
-  setMsg(isBoss ? "필사적으로 버텨라!!" : "타이밍 맞춰 탭! 릴을 감으세요");
+  setMsg(isBoss ? "초대형 어종! 드랙을 조절하며 버텨라!!" : "꾹 눌러 감기 · 질주·점프 땐 손 떼기");
+  spawnSplash(bobber.x, bobber.y, 14, 1);
+}
+
+/* ----- Landing: fish is spent and at your feet — one timed net swing ----- */
+const NET_TARGET_R = 34;
+function beginLanding() {
+  state = 'landing';
+  landing = { t: 0, grace: 0.35, dur: 1.25, window: fight.rf.netWindow };
+  setMsg("뜰채 준비! 원이 초록 테두리에 겹칠 때 탭!");
+  SFX.bite();
+  vibrate(25);
+}
+function landingRingR() {
+  const k = Math.max(0, landing.t - landing.grace) / landing.dur;
+  return 100 * (1 - k);
+}
+function swingNet() {
+  const r = landingRingR();
+  if (Math.abs(r - NET_TARGET_R) <= landing.window) {
+    SFX.net();
+    const p = fightScreenPos();
+    spawnSplash(p.x, p.y, 22, 1.4);
+    fight = null; landing = null;
+    catchSuccess();
+  } else netMiss();
+}
+function netMiss() {
+  SFX.tapMiss();
+  shake = Math.max(shake, 8);
+  vibrate(60);
+  const p = fightScreenPos();
+  spawnSplash(p.x, p.y, 16, 1.2);
+  fightResumeAfterNetMiss(fight);
+  landing = null;
+  state = 'reeling';
+  setMsg("뜰채 실패! 다시 도망간다 – 다시 지치게 만드세요");
 }
 
 function catchSuccess() {
   const isBoss = currentFish.rarity === 'boss' || currentFish.rarity === 'mythic';
   const conf = RARITY[currentFish.rarity];
-  const size = (currentFish.minLen + Math.random()*(currentFish.maxLen-currentFish.minLen)).toFixed(1);
-  const sizeRatio = (size-currentFish.minLen)/(currentFish.maxLen-currentFish.minLen+0.001);
+  const sizeRatio = currentFish.sizeRatio == null ? Math.random() : currentFish.sizeRatio;
+  const size = (currentFish.minLen + sizeRatio*(currentFish.maxLen-currentFish.minLen)).toFixed(1);
   const trophyThreshold = castBaitType === 'trophy' ? 0.65 : 0.85;
   const isTrophy = !isBoss && sizeRatio >= trophyThreshold;
   let points = Math.round(conf.points * (0.7 + 0.6*sizeRatio));
@@ -1723,9 +2127,15 @@ function catchSuccess() {
   checkDexCompletion();
 }
 
+const FAIL_INFO = {
+  snapped:  { text:'줄이 끊어졌습니다!',          hint:'질주·점프 순간엔 손을 떼고, 드랙은 줄 강도보다 낮게' },
+  unhooked: { text:'바늘이 빠졌습니다...',        hint:'줄이 느슨해지면 계속 감아서 팽팽하게 유지하세요' },
+  spooled:  { text:'줄이 전부 풀려버렸습니다!',   hint:'드랙이 너무 약해요 · 물고기가 멈출 때 부지런히 감기' },
+  snagged:  { text:'바닥 암초에 줄이 쓸렸습니다!', hint:'파고들 때는 계속 감아서 장력을 유지하세요' },
+};
 function catchFail(reason) {
   const eligibleForInsurance = currentFish && RARITY[currentFish.rarity].stars >= 5;
-  if ((reason === 'snapped' || reason === 'escaped') && eligibleForInsurance && (economy.boosters.insurance || 0) > 0) {
+  if (FAIL_INFO[reason] && eligibleForInsurance && (economy.boosters.insurance || 0) > 0) {
     economy.boosters.insurance -= 1;
     economy.totalInsuranceSaves = (economy.totalInsuranceSaves || 0) + 1;
     saveEconomy(); updateTopStats(); queueSyncPush(); checkAchievements(); updateInsuranceBadge();
@@ -1735,11 +2145,19 @@ function catchFail(reason) {
     setMsg('🛡️ 보험권 발동! 도망가지 못했다 - 처음부터 다시!');
     return;
   }
+  const isBoss = currentFish && (currentFish.rarity === 'boss' || currentFish.rarity === 'mythic');
+  if (fight) {
+    const p = fightScreenPos();
+    if (reason === 'snapped') { SFX.snap(); spawnSplash(p.x, p.y, 18, 1.2); }
+  }
+  fight = null; landing = null;
   catchStreak = 0; updateStreakBadge();
   resultData = { ok:false, reason };
-  state = 'result'; resultTimer = 1.4;
-  const text = reason === 'snapped' ? "줄이 끊어졌습니다!" : reason === 'escaped' ? "괴물이 사라졌다..." : "놓쳤습니다...";
-  showFailCard(text);
+  state = 'result'; resultTimer = 2.0;
+  shake = Math.max(shake, 9);
+  vibrate([80, 40, 120]);
+  const info = FAIL_INFO[reason] || { text:'놓쳤습니다...', hint:'' };
+  showFailCard((isBoss ? '괴물이 사라졌다... ' : '') + info.text, info.hint);
   SFX.catchFail();
   document.getElementById('stageWrap').classList.remove('bossMode'); document.getElementById('stageWrap').classList.remove('mythicMode');
 }
@@ -1761,14 +2179,21 @@ function showCatchReveal(d) {
   clearTimeout(reveal._hideTimer);
   reveal._hideTimer = setTimeout(() => { reveal.style.display = 'none'; }, d.isBoss ? 3600 : 2500);
 }
-function showFailCard(text) {
+function showFailCard(text, hint) {
   const reveal = document.getElementById('catchReveal');
   document.getElementById('catchCard').style.display = 'none';
   const fc = document.getElementById('failCard');
-  fc.textContent = text; fc.style.display = 'block';
+  fc.textContent = text;
+  if (hint) {
+    const h = document.createElement('div');
+    h.className = 'failHint';
+    h.textContent = '💡 ' + hint;
+    fc.appendChild(h);
+  }
+  fc.style.display = 'block';
   reveal.style.display = 'flex';
   clearTimeout(reveal._hideTimer);
-  reveal._hideTimer = setTimeout(() => { reveal.style.display = 'none'; }, 1300);
+  reveal._hideTimer = setTimeout(() => { reveal.style.display = 'none'; }, 2100);
 }
 
 const LV_THRESHOLD = 500;
@@ -1779,11 +2204,11 @@ function showLevelUp(lv) {
   const tier = getTier(lv);
   document.getElementById('luNum').textContent = lv;
   document.getElementById('luTitle').textContent = tier.title;
-  const tensionPct = Math.round((1-tier.tensionMul)*100);
-  const zonePct = Math.round((tier.zoneMul-1)*100);
-  const gainPct = Math.round((tier.gainMul-1)*100);
+  const powerPct = Math.round((1-tier.powerMul)*100);
+  const drainPct = Math.round((tier.drainMul-1)*100);
+  const reelPct = Math.round((tier.reelMul-1)*100);
   document.getElementById('luBuff').textContent =
-    `저항 -${tensionPct}% · 성공존 +${zonePct}% · 획득량 +${gainPct}%`;
+    `물고기 힘 -${powerPct}% · 체력 소모 +${drainPct}% · 릴 속도 +${reelPct}%`;
   const popup = document.getElementById('levelUpPopup');
   popup.classList.remove('show'); void popup.offsetWidth; popup.classList.add('show');
   SFX.levelUp();
@@ -1813,20 +2238,30 @@ function updateTopStats() {
 ========================================================= */
 function update(dt) {
   if (shake > 0) shake = Math.max(0, shake - dt*20);
-  if (spaceJustPressed) { handleSpace(); spaceJustPressed = false; }
   if (ripples.length) {
     for (const r of ripples) r.t += dt;
     ripples = ripples.filter(r => r.t < 1.3);
   }
   updateCastParticles(dt);
-  document.getElementById('runWarning').style.display = (state==='reeling' && reel.runActive && currentFish.rarity!=='boss' && currentFish.rarity!=='mythic') ? 'block' : 'none';
+  updateSplashes(dt);
+  updateHotspots(dt);
+  rodDirSmooth += (rodDirTarget() - rodDirSmooth) * Math.min(1, dt*9);
+  const pressed = actionPressed;
+  actionPressed = false;
 
-  if (charging) {
-    castPower = Math.min(100, castPower + dt*160);
-    document.getElementById('powerFill').style.width = castPower + '%';
-  }
-
-  if (state === 'casting') {
+  if (state === 'idle') {
+    if (pressed) { charging = true; castPower = 0; }
+    if (charging) {
+      castPower = Math.min(100, castPower + dt*110);
+      document.getElementById('powerFill').style.width = castPower + '%';
+      if (!actionHeld) {
+        charging = false;
+        const p = castPower; castPower = 0;
+        document.getElementById('powerFill').style.width = '0%';
+        startCast(p);
+      }
+    }
+  } else if (state === 'casting') {
     bobber._t += dt * 1.8;
     const t = Math.min(1, bobber._t);
     bobber.x = bobber._sx + (bobber.targetX-bobber._sx)*t;
@@ -1840,114 +2275,115 @@ function update(dt) {
   } else if (state === 'bite') {
     biteTimer -= dt;
     bobber.y = bobber.targetY + Math.sin(performance.now()/55)*7;
-    if (biteTimer <= 0) {
+    if (pressed) beginReeling();
+    else if (biteTimer <= 0) {
       document.getElementById('bossBanner').style.display = 'none';
       catchStreak = 0; updateStreakBadge();
       setMsg("놓쳤습니다..."); state = 'idle';
-      setTimeout(()=>setMsg("스페이스바 또는 버튼으로 캐스팅하세요"), 1100);
+      setTimeout(()=>{ if (state === 'idle') setMsg("길게 눌러 캐스팅 · ◀▶로 방향 조준"); }, 1100);
     }
   } else if (state === 'reeling') {
-    const isBoss = currentFish.rarity === 'boss' || currentFish.rarity === 'mythic';
-    const conf = RARITY[currentFish.rarity];
-    const tier = getTier(playerLevel());
-    const eq = equipmentBuffs();
-
-    if (reel.phase === 'mash') {
-      reel.mashTimer -= dt;
-      reel.mashProgress = Math.max(0, reel.mashProgress - dt*15);
-      document.getElementById('finalStandWarning').style.display = 'none';
-      document.getElementById('runWarning').style.display = 'none';
-      if (reel.mashTimer <= 0) catchFail(isBoss ? 'escaped' : 'snapped');
-    } else {
-      reel.nextRunAt -= dt;
-      if (!reel.runActive && reel.nextRunAt <= 0) {
-        reel.runActive = true; reel.runTimer = 0.8 + Math.random()*0.4;
-      }
-      if (reel.runActive) {
-        reel.runTimer -= dt;
-        if (reel.runTimer <= 0) { reel.runActive = false; reel.nextRunAt = (isBoss?1.6:2.2) + Math.random()*2; }
-      }
-      if (isBoss && !reel.finalStandDone && reel.progress >= 60) {
-        reel.finalStand = true;
-        if (!reel._finalStandStarted) {
-          reel._finalStandStarted = true;
-          reel._finalStandTimer = 2.2;
-          setMsg("!! 마지막 발악이다 – 버텨라 !!");
-        }
-        reel._finalStandTimer -= dt;
-        if (reel._finalStandTimer <= 0) {
-          reel.finalStandDone = true; reel.finalStand = false;
-          setMsg("필사적으로 버텨라!!");
-        }
-      }
-      document.getElementById('finalStandWarning').style.display = reel.finalStand ? 'block' : 'none';
-
-      const finalMul = reel.finalStand ? 1.4 : 1; // finalStand only ever occurs for isBoss fish
-      const runMul = reel.runActive ? (isBoss?1.85:1.9) : 1;
-      // boss/mythic needle surges and eases unpredictably but always sweeps forward through the
-      // full track (never reverses), so every zone position stays physically reachable
-      const wobbleMul = isBoss ? (1 + 0.3*Math.sin(reel.needleT*0.37 + 1.7)) : 1;
-      const speedMul = (1 + 0.7*(reel.progress/100)) * runMul * finalMul * wobbleMul;
-      reel.needleT += dt * conf.needleSpeed * speedMul;
-      reel.tension = Math.min(100, reel.tension + dt * conf.tensionRate * tier.tensionMul * eq.tensionMul * (reel.runActive?(isBoss?1.55:1.6):1) * (reel.finalStand?1.3:1));
-      if (reel.flashT > 0) reel.flashT -= dt;
-      if (reel.tension >= 100) {
-        catchFail(isBoss ? 'escaped' : 'snapped');
-      } else if (usesMashFinisher(currentFish.rarity) && reel.progress >= MASH_THRESHOLD) {
-        reel.phase = 'mash';
-        reel.mashProgress = 0;
-        reel.mashTimerMax = isBoss ? 2.8 : 3.4;
-        reel.mashTimer = reel.mashTimerMax;
-        shake = Math.max(shake, 6);
-        setMsg("!! 마무리다 – 연타하세요 !!");
-      }
-    }
+    fightInput.reeling = actionHeld;
+    fightInput.rodDir = rodDirSmooth;
+    fightInput.drag = dragSetting;
+    physAcc += dt;
+    while (physAcc >= FIGHT_DT && !fight.outcome) { fightStep(fight, fightInput, FIGHT_DT); physAcc -= FIGHT_DT; }
+    handleFightFeedback(dt);
+    if (fight.outcome === 'landing') beginLanding();
+    else if (fight.outcome) catchFail(fight.outcome);
+  } else if (state === 'landing') {
+    landing.t += dt;
+    if (pressed && landing.t > landing.grace) swingNet();
+    else if (landingRingR() < NET_TARGET_R - landing.window) netMiss();
   } else if (state === 'result') {
     resultTimer -= dt;
     if (resultTimer <= 0) {
       state = 'idle';
       bobber.x = rod.tipX; bobber.y = rod.tipY;
-      setMsg("스페이스바 또는 버튼으로 캐스팅하세요");
+      rope = null;
+      setMsg("길게 눌러 캐스팅 · ◀▶로 방향 조준");
     }
+  }
+  updateFightCue();
+  updateActionLabel();
+  updateRodRig(dt, performance.now()/1000);
+}
+
+/* sounds, shake, haptics and splashes that follow the fight state */
+function handleFightFeedback(dt) {
+  const f = fight;
+  for (const ev of f.events) {
+    const p = fightScreenPos();
+    if (ev === 'run') { SFX.run(); shake = Math.max(shake, 6); vibrate(30); }
+    else if (ev === 'jump') { SFX.jump(); spawnSplash(p.x, p.y, 20, 1.3); ripples.push({ x:p.x, y:p.y, t:0 }); shake = Math.max(shake, 7); vibrate(45); }
+    else if (ev === 'laststand') { SFX.bossAlert(); shake = Math.max(shake, 12); vibrate([60,40,60]); }
+    else if (ev === 'dive' || ev === 'charge') spawnSplash(p.x, p.y, 6, 0.6);
+  }
+  f.events.length = 0;
+  // landing splash when a jump ends
+  if (f._wasAir && f.beh !== 'jump') { const p = fightScreenPos(); spawnSplash(p.x, p.y, 18, 1.2); ripples.push({ x:p.x, y:p.y, t:0 }); SFX.splash(); }
+  f._wasAir = f.beh === 'jump';
+  // drag clicks as line pays out, soft ticks while winding in
+  if (f.paidOut - fightSound.paid > 0.35) { fightSound.paid = f.paidOut; SFX.dragClick(); }
+  if (fightInput.reeling) {
+    fightSound.reeled += f.gear.reelSpeed * f.gear.reelMul * dt;
+    if (fightSound.reeled > 0.6) { fightSound.reeled = 0; SFX.reelTick(); }
+  }
+  const ratio = f.tension / f.gear.strength;
+  if (ratio > 0.8) {
+    shake = Math.max(shake, 2 + (ratio - 0.8) * 20);
+    fightSound.creakT -= dt;
+    if (fightSound.creakT <= 0) { fightSound.creakT = 0.28; SFX.lineCreak(); vibrate(15); }
+  }
+  // wake on the surface while the fish swims shallow
+  if (f.beh !== 'jump' && f.depth < 0.45 && Math.random() < dt * (2 + Math.hypot(f.vx, f.vz))) {
+    const p = fightScreenPos();
+    ripples.push({ x:p.x, y:p.y, t:0.4 });
   }
 }
 
-function needleX() { return 0.5 + 0.42*Math.sin(reel.needleT); }
-
-function handleSpace() {
-  if (state === 'idle') { startCast(0); }
-  else if (state === 'bite') { beginReeling(); }
-  else if (state === 'reeling' && reel.phase === 'mash') {
-    reel.mashProgress = Math.min(100, reel.mashProgress + 7 + Math.random()*3);
-    shake = 6;
-    SFX.tapHit();
-    if (reel.mashProgress >= 100) catchSuccess();
+/* big telegraph text over the water: danger first, then what the fish is doing */
+function fightCueFor() {
+  if (state === 'landing') return { key:'net', text:'뜰채! 타이밍에 탭!', color:'#69f0ae' };
+  if (state !== 'reeling' || !fight) return null;
+  const f = fight;
+  const ratio = f.tension / f.gear.strength;
+  if (ratio > 0.88) return { key:'break', text:'💥 줄이 끊어지기 직전! 손 떼기 / 드랙 ↓', color:'#ff1744' };
+  if (f.slackT > 0.7) return { key:'slack', text:'〰 줄이 느슨하다! 감아라!', color:'#40c4ff' };
+  if (f.snagT > 0.6) return { key:'snag', text:'⚠ 암초에 쓸린다! 세게 감아라!', color:'#26a69a' };
+  if (f.L > f.gear.capacity * 0.85) return { key:'spool', text:'🧵 줄이 바닥난다! 드랙 ↑', color:'#ffab40' };
+  if (f.beh === 'tell') {
+    if (f.queued === 'jump') return { key:'tjump', text:'⚠ 점프한다! 손 떼!', color:'#ffee58' };
+    return { key:'trun', text:'⚠ 곧 질주! 손 떼기', color:'#ffab40' };
   }
-  else if (state === 'reeling') {
-    const nx = needleX();
-    const inZone = nx >= reel.zoneStart && nx <= reel.zoneStart + reel.zoneWidth;
-    reel.flashT = 0.15;
-    const isBoss = currentFish.rarity === 'boss' || currentFish.rarity === 'mythic';
-    const conf = RARITY[currentFish.rarity];
-    const tier = getTier(playerLevel());
-    const eq = equipmentBuffs();
-    if (inZone) {
-      const center = reel.zoneStart + reel.zoneWidth/2;
-      const dNorm = 1 - Math.min(1, Math.abs(nx-center)/(reel.zoneWidth/2));
-      reel.progress = Math.min(100, reel.progress + (conf.gain + dNorm*7) * tier.gainMul * eq.gainMul);
-      if (usesMashFinisher(currentFish.rarity)) reel.progress = Math.min(99, reel.progress);
-      reel.tension = Math.max(0, reel.tension - (isBoss?11:12));
-      reel.zoneWidth = Math.min(0.5, Math.max(0.07, conf.zoneWidthRatio * tier.zoneMul * (1 - (isBoss?0.25:0.35)*(reel.progress/100))));
-      reel.zoneStart = Math.random() * (1 - reel.zoneWidth);
-      SFX.tapHit();
-      if (reel.progress >= 100) catchSuccess();
-    } else {
-      reel.progress = Math.max(0, reel.progress - 9);
-      reel.tension = Math.min(100, reel.tension + 13 * tier.tensionMul);
-      shake = isBoss ? 7 : 4;
-      SFX.tapMiss();
-    }
-  }
+  if (f.beh === 'jump') return { key:'jump', text:'🐟 점프!! 감지 마라!', color:'#ffee58' };
+  if (f.beh === 'run') return { key:'run', text:'질주! 드랙이 줄을 내준다', color:'#ff5252' };
+  if (f.beh === 'charge') return { key:'charge', text:'돌진! 빨리 감아라!', color:'#40c4ff' };
+  if (f.beh === 'dive') return { key:'dive', text:'바닥으로 파고든다! 감아서 버텨라', color:'#26a69a' };
+  if (f.beh === 'turn') return f.hx > 0
+    ? { key:'turnR', text:'◀ 낚싯대를 왼쪽으로!', color:'#b388ff' }
+    : { key:'turnL', text:'낚싯대를 오른쪽으로! ▶', color:'#b388ff' };
+  if (f.stamina / f.staminaMax < 0.15) return { key:'tired', text:'지쳤다! 끌어당겨라!', color:'#69f0ae' };
+  return null;
+}
+function updateFightCue() {
+  const cue = fightCueFor();
+  const el = document.getElementById('fightCue');
+  const key = cue ? cue.key : '';
+  if (key === cueKey) return;
+  cueKey = key;
+  if (!cue) { el.style.display = 'none'; return; }
+  el.textContent = cue.text;
+  el.style.setProperty('--cue', cue.color);
+  el.style.display = 'block';
+  el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop');
+}
+let actionLabel = '';
+function updateActionLabel() {
+  const label = state === 'idle' ? (charging ? '떼면 던짐' : '캐스팅')
+    : state === 'bite' ? '챔질!' : state === 'reeling' ? (actionHeld ? '감는 중' : '눌러 감기')
+    : state === 'landing' ? '뜰채!' : '···';
+  if (label !== actionLabel) { actionLabel = label; actionBtn.textContent = label; }
 }
 
 /* =========================================================
@@ -2660,8 +3096,238 @@ function drawFishShape(c, def, len) {
 /* =========================================================
    Foreground game elements
 ========================================================= */
+/* =========================================================
+   Water-space projection: x = metres sideways, z = metres out from the angler.
+   Far water squeezes toward the horizon.
+========================================================= */
+const WATER_CX = 470;
+function depthScale(z) { return 1 / (1 + z/10); }
+function worldToScreen(x, z) {
+  const s = depthScale(z);
+  return { x: WATER_CX + x * 42 * s, y: HORIZON + 8 + (H - 46 - HORIZON) * s, s };
+}
+/* where the line meets the fish: surface point, or the fish itself mid-jump */
+function fightScreenPos() {
+  if (!fight) return { x: bobber.x, y: bobber.y, s: 0.5 };
+  const p = worldToScreen(fight.x, fight.z);
+  if (fight.beh === 'jump') {
+    const k = Math.min(1, fight.jumpT / fight.jumpDur);
+    p.y -= Math.sin(k*Math.PI) * (40 + fishPixelLen(fight.def, p.s) * 0.35);
+  }
+  return p;
+}
+function fishPixelLen(def, s) {
+  const cm = def.minLen + (def.maxLen - def.minLen) * (def.sizeRatio == null ? 0.5 : def.sizeRatio);
+  return Math.max(34, Math.min(200, 20 + cm*0.5)) * (0.45 + 0.9*s);
+}
+
+/* ----- Splash droplets ----- */
+let splashes = [];
+function spawnSplash(x, y, n, power) {
+  for (let i=0;i<n;i++) {
+    const a = -Math.PI/2 + (Math.random()-0.5)*1.9;
+    const sp = (90 + Math.random()*150) * (power || 1);
+    splashes.push({ x, y, vx: Math.cos(a)*sp*0.8, vy: Math.sin(a)*sp, life: 0, max: 0.5 + Math.random()*0.45, r: 1.5 + Math.random()*2.6, y0: y });
+  }
+}
+function updateSplashes(dt) {
+  if (!splashes.length) return;
+  for (const p of splashes) { p.life += dt; p.vy += 620*dt; p.x += p.vx*dt; p.y += p.vy*dt; }
+  splashes = splashes.filter(p => p.life < p.max && p.y < p.y0 + 6);
+}
+function drawSplashes() {
+  if (!splashes.length) return;
+  ctx.save();
+  for (const p of splashes) {
+    ctx.globalAlpha = Math.max(0, 0.85 * (1 - p.life/p.max));
+    ctx.fillStyle = '#e8fbff';
+    ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI*2); ctx.fill();
+  }
+  ctx.restore();
+}
+
+/* =========================================================
+   Rod rig: JS drives rotation (idle sway, lean, cast flick) and bends the blank
+   toward the load. rigToCanvas maps SVG-local points into canvas pixels.
+========================================================= */
+const rodRigEl = document.getElementById('rodRig');
+const RIG = { left: W + 10 - 300, top: H + 14 - 320, ox: 210, oy: 304 };
+const ROD_BASE = { x:40, y:300 }, ROD_TIP = { x:230, y:40 }, ROD_CTRL = { x:144.5, y:157 };
+let rigAngle = 0, flickT = -1;
+const rodBend = { x:0, y:0 };
+let decoParts = null;
+function rigToCanvas(px, py) {
+  const a = rigAngle * Math.PI/180, c = Math.cos(a), s = Math.sin(a);
+  const dx = px - RIG.ox, dy = py - RIG.oy;
+  return { x: RIG.left + RIG.ox + dx*c - dy*s, y: RIG.top + RIG.oy + dx*s + dy*c };
+}
+function quadAt(t, c, tip) {
+  const u = 1 - t;
+  return { x: u*u*ROD_BASE.x + 2*u*t*c.x + t*t*tip.x, y: u*u*ROD_BASE.y + 2*u*t*c.y + t*t*tip.y };
+}
+function flickAngle(k) {           // same curve the old CSS keyframes used
+  if (k < 0.22) return -11 * (k/0.22);
+  if (k < 0.55) return -11 + 15 * ((k-0.22)/0.33);
+  return 4 * (1 - (k-0.55)/0.45);
+}
+function bendLoad() {
+  if ((state === 'reeling' || state === 'landing') && fight) return Math.min(1.1, fight.tension / fight.gear.strength);
+  if (state === 'bite') return 0.18;
+  if (state === 'waiting') return 0.04;
+  return 0;
+}
+function lineEndPoint() {
+  if ((state === 'reeling' || state === 'landing') && fight) return fightScreenPos();
+  return { x: bobber.x, y: bobber.y };
+}
+function updateRodRig(dt, t) {
+  let ang = -0.55 + 0.55*Math.sin(t * 2*Math.PI / 3.4);
+  ang += rodDirSmooth * 8;
+  const load = bendLoad();
+  ang += load * 3;                               // the load drags the whole rig forward a touch
+  if (flickT >= 0) {
+    flickT += dt;
+    const k = flickT / 0.45;
+    if (k >= 1) flickT = -1; else ang += flickAngle(k);
+  }
+  rigAngle = ang;
+  rodRigEl.style.transform = `rotate(${ang.toFixed(2)}deg)`;
+
+  // bend the tip toward where the line goes
+  const tipNow = rigToCanvas(ROD_TIP.x, ROD_TIP.y);
+  const end = lineEndPoint();
+  let dx = end.x - tipNow.x, dy = end.y - tipNow.y;
+  const n = Math.hypot(dx, dy) || 1; dx /= n; dy /= n;
+  const a = -rigAngle * Math.PI/180, c = Math.cos(a), s = Math.sin(a);
+  const lx = dx*c - dy*s, ly = dx*s + dy*c;       // into rig-local space
+  const mag = 62 * load;
+  rodBend.x += (lx*mag - rodBend.x) * Math.min(1, dt*10);
+  rodBend.y += (ly*mag - rodBend.y) * Math.min(1, dt*10);
+  const tip = { x: ROD_TIP.x + rodBend.x, y: ROD_TIP.y + rodBend.y };
+  const ctrl = { x: ROD_CTRL.x + rodBend.x*0.3, y: ROD_CTRL.y + rodBend.y*0.3 };
+  const d = `M${ROD_BASE.x} ${ROD_BASE.y} Q${ctrl.x.toFixed(1)} ${ctrl.y.toFixed(1)} ${tip.x.toFixed(1)} ${tip.y.toFixed(1)}`;
+  for (const p of rodRigEl.querySelectorAll('.rodCurve')) p.setAttribute('d', d);
+  const rings = rodRigEl.querySelectorAll('#rodRings circle');
+  [0.6, 0.4, 0.2].forEach((tt, i) => { const q = quadAt(tt, ctrl, tip); if (rings[i]) { rings[i].setAttribute('cx', q.x.toFixed(1)); rings[i].setAttribute('cy', q.y.toFixed(1)); } });
+  const wraps = rodRigEl.querySelectorAll('#rodWraps line');
+  [0.2, 0.4, 0.6, 0.8].forEach((tt, i) => {
+    const q = quadAt(tt, ctrl, tip), q2 = quadAt(tt + 0.01, ctrl, tip);
+    let nx = -(q2.y - q.y), ny = q2.x - q.x; const nn = Math.hypot(nx, ny) || 1; nx /= nn; ny /= nn;
+    const w = wraps[i]; if (!w) return;
+    w.setAttribute('x1', (q.x - nx*7).toFixed(1)); w.setAttribute('y1', (q.y - ny*7).toFixed(1));
+    w.setAttribute('x2', (q.x + nx*7).toFixed(1)); w.setAttribute('y2', (q.y + ny*7).toFixed(1));
+  });
+  moveDecoWithBend(ctrl, tip);
+  const tipC = rigToCanvas(tip.x, tip.y);
+  rod.tipX = tipC.x; rod.tipY = tipC.y;
+}
+/* skin decorations ride along the bent blank: each part shifts by the bend at its spot on the rod */
+function moveDecoWithBend(ctrl, tip) {
+  const deco = document.getElementById('skinDeco');
+  if (!deco) return;
+  if (!decoParts) {
+    decoParts = [];
+    const kids = Array.from(deco.children);
+    const ax = ROD_TIP.x - ROD_BASE.x, ay = ROD_TIP.y - ROD_BASE.y, len2 = ax*ax + ay*ay;
+    for (const kid of kids) {
+      let bb; try { bb = kid.getBBox(); } catch (e) { bb = null; }
+      if (!bb) continue;
+      const cx = bb.x + bb.width/2, cy = bb.y + bb.height/2;
+      const t = Math.max(0, Math.min(1, ((cx - ROD_BASE.x)*ax + (cy - ROD_BASE.y)*ay) / len2));
+      const wrap = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+      deco.insertBefore(wrap, kid); wrap.appendChild(kid);
+      decoParts.push({ g: wrap, t });
+    }
+  }
+  for (const p of decoParts) {
+    const bent = quadAt(p.t, ctrl, tip), straight = quadAt(p.t, ROD_CTRL, ROD_TIP);
+    p.g.setAttribute('transform', `translate(${(bent.x - straight.x).toFixed(1)},${(bent.y - straight.y).toFixed(1)})`);
+  }
+}
+
+/* =========================================================
+   Fishing line: Verlet rope between rod tip and the line's far end.
+   Slack line sags under gravity, a loaded line snaps straight and hums.
+========================================================= */
+const ROPE_N = 18;
+let rope = null;
+function ropeRestLength(ax, ay, bx, by) {
+  const dist = Math.hypot(bx - ax, by - ay);
+  if (state === 'casting') return dist * 1.02;
+  if (state === 'waiting' || state === 'bite') return dist * 1.07;
+  if (fight) {
+    const r = Math.max(1, Math.hypot(fight.x, fight.z));
+    if (fight.tension > 2) return dist * 0.995;
+    return dist * (1 + Math.min(0.3, Math.max(0.01, (fight.L - r) / r)));
+  }
+  return dist * 1.05;
+}
+function stepRope(dt) {
+  const end = lineEndPoint();
+  const ax = rod.tipX, ay = rod.tipY, bx = end.x, by = end.y;
+  if (!rope) {
+    rope = [];
+    for (let i=0;i<=ROPE_N;i++) { const k = i/ROPE_N; const x = ax + (bx-ax)*k, y = ay + (by-ay)*k; rope.push({ x, y, px: x, py: y }); }
+  }
+  const seg = ropeRestLength(ax, ay, bx, by) / ROPE_N;
+  const g = 900 * dt * dt;
+  for (let i=1;i<ROPE_N;i++) {
+    const p = rope[i];
+    const vx = (p.x - p.px) * 0.97, vy = (p.y - p.py) * 0.97;
+    p.px = p.x; p.py = p.y;
+    p.x += vx; p.y += vy + g;
+  }
+  for (let it=0; it<14; it++) {
+    rope[0].x = ax; rope[0].y = ay; rope[ROPE_N].x = bx; rope[ROPE_N].y = by;
+    for (let i=0;i<ROPE_N;i++) {
+      const p = rope[i], q = rope[i+1];
+      const dx = q.x - p.x, dy = q.y - p.y;
+      const d = Math.hypot(dx, dy) || 0.0001;
+      if (d <= seg) continue;                     // a line only resists stretching
+      const diff = (d - seg) / d * 0.5;
+      const ox = dx*diff, oy = dy*diff;
+      if (i > 0) { p.x += ox; p.y += oy; }
+      if (i+1 < ROPE_N) { q.x -= ox; q.y -= oy; }
+    }
+  }
+  rope[0].x = ax; rope[0].y = ay; rope[ROPE_N].x = bx; rope[ROPE_N].y = by;
+}
+function lineColor(ratio) {
+  if (ratio < 0.55) return 'rgba(255,255,255,0.75)';
+  if (ratio < 0.8) return 'rgba(255,213,120,0.9)';
+  return 'rgba(255,82,82,0.95)';
+}
+function drawLine(dt) {
+  if (state === 'idle' || state === 'result') { rope = null; return; }
+  stepRope(dt);
+  const ratio = fight ? fight.tension / fight.gear.strength : 0;
+  const hum = ratio > 0.7 ? (ratio - 0.7) * 6 : 0;
+  const t = performance.now() / 1000;
+  ctx.save();
+  ctx.strokeStyle = state === 'casting' ? '#eafcff' : lineColor(ratio);
+  ctx.lineWidth = state === 'casting' ? 2.2 : 1.3 + ratio*0.9;
+  if (ratio > 0.8) { ctx.shadowColor = 'rgba(255,60,60,0.8)'; ctx.shadowBlur = 6; }
+  ctx.beginPath();
+  ctx.moveTo(rope[0].x, rope[0].y);
+  for (let i=1;i<=ROPE_N;i++) {
+    const wob = (i > 0 && i < ROPE_N) ? Math.sin(t*70 + i*1.7) * hum * Math.sin(i/ROPE_N*Math.PI) : 0;
+    ctx.lineTo(rope[i].x, rope[i].y + wob);
+  }
+  ctx.stroke();
+  ctx.restore();
+  // underwater stretch of line down to the fish
+  if (fight && fight.beh !== 'jump' && state !== 'landing') {
+    const sp = worldToScreen(fight.x, fight.z);
+    ctx.save();
+    ctx.globalAlpha = 0.35;
+    ctx.strokeStyle = '#dff6ff'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(sp.x, sp.y); ctx.lineTo(sp.x + fight.vx*3*sp.s, sp.y + 8 + fight.depth*30*sp.s); ctx.stroke();
+    ctx.restore();
+  }
+}
+
 function drawBobber() {
-  if (state === 'idle' || state === 'result') return;
+  if (state !== 'casting' && state !== 'waiting' && state !== 'bite') return;
   ctx.save();
   ctx.translate(bobber.x, bobber.y);
   ctx.beginPath(); ctx.ellipse(0,4,9,3,0,0,Math.PI*2); ctx.fillStyle='rgba(0,0,0,0.25)'; ctx.fill();
@@ -2671,37 +3337,6 @@ function drawBobber() {
   if (state === 'bite') {
     ctx.fillStyle = '#ffeb3b'; ctx.font = 'bold 28px sans-serif'; ctx.textAlign = 'center';
     ctx.fillText('!', bobber.x, bobber.y-22);
-  }
-}
-
-function drawLine() {
-  const midY = Math.min(rod.tipY,bobber.y)-50;
-  if (state === 'casting') {
-    ctx.save();
-    ctx.globalAlpha = 0.5;
-    ctx.strokeStyle = '#eafcff'; ctx.lineWidth = 3.2;
-    ctx.shadowColor = 'rgba(180,240,255,0.8)'; ctx.shadowBlur = 6;
-    ctx.beginPath();
-    ctx.moveTo(rod.tipX, rod.tipY);
-    ctx.quadraticCurveTo((rod.tipX+bobber.x)/2, midY, bobber.x, bobber.y);
-    ctx.stroke();
-    ctx.restore();
-    for (let i=0;i<3;i++) {
-      const back = Math.max(0, (bobber._t||0) - i*0.06);
-      const bx = bobber._sx + (bobber.targetX-bobber._sx)*back;
-      const by = bobber._sy + (bobber.targetY-bobber._sy)*back - Math.sin(back*Math.PI)*70;
-      ctx.save();
-      ctx.globalAlpha = 0.22 - i*0.06;
-      ctx.fillStyle = '#fff';
-      ctx.beginPath(); ctx.arc(bx, by, 4-i, 0, Math.PI*2); ctx.fill();
-      ctx.restore();
-    }
-  } else {
-    ctx.strokeStyle = 'rgba(255,255,255,0.65)'; ctx.lineWidth = 1.4;
-    ctx.beginPath();
-    ctx.moveTo(rod.tipX, rod.tipY);
-    ctx.quadraticCurveTo((rod.tipX+bobber.x)/2, midY, bobber.x, bobber.y);
-    ctx.stroke();
   }
 }
 
@@ -2716,66 +3351,277 @@ function drawRipples() {
   }
 }
 
-function drawMashUI() {
-  const cx = W/2, cy = H/2 - 20, r = 72;
+/* ----- Hotspots: boiling water + darting shadows ----- */
+function drawHotspots(now) {
+  const t = now / 1000;
+  for (const h of hotspots) {
+    const p = worldToScreen(h.x, h.z);
+    const fade = Math.min(1, h.t / 1.5, (h.life - h.t) / 1.5);
+    ctx.save();
+    ctx.globalAlpha = 0.5 * fade;
+    ctx.strokeStyle = '#eaffff'; ctx.lineWidth = 1.2;
+    for (let i=0;i<3;i++) {
+      const k = ((t*0.7 + i/3 + h.seed) % 1);
+      ctx.globalAlpha = 0.45 * fade * (1 - k);
+      ctx.beginPath(); ctx.ellipse(p.x, p.y, (10 + k*48)*p.s*1.6, (4 + k*16)*p.s*1.6, 0, 0, Math.PI*2); ctx.stroke();
+    }
+    ctx.fillStyle = '#04141c';
+    for (let i=0;i<5;i++) {
+      const a = t*(1.2 + i*0.3) + i*1.3 + h.seed;
+      const fx = p.x + Math.cos(a) * 34 * p.s * 1.5, fy = p.y + 4 + Math.sin(a) * 9 * p.s * 1.5;
+      ctx.globalAlpha = 0.28 * fade;
+      ctx.save(); ctx.translate(fx, fy); ctx.rotate(a + Math.PI/2);
+      ctx.beginPath(); ctx.ellipse(0, 0, 9*p.s*1.4, 3*p.s*1.4, 0, 0, Math.PI*2); ctx.fill();
+      ctx.restore();
+    }
+    // the odd baitfish flicking out of the water
+    const hop = (t*0.9 + h.seed) % 2.2;
+    if (hop < 0.4) {
+      const k = hop / 0.4;
+      ctx.globalAlpha = 0.8 * fade;
+      ctx.fillStyle = '#cfe8f0';
+      ctx.beginPath(); ctx.ellipse(p.x + (k-0.5)*30*p.s, p.y - Math.sin(k*Math.PI)*22*p.s, 5*p.s*1.5, 2*p.s*1.5, (k-0.5)*1.4, 0, Math.PI*2); ctx.fill();
+    }
+    ctx.restore();
+  }
+}
+
+/* ----- Cast aim: where a release right now would land ----- */
+function drawAimReticle(now) {
+  if (state !== 'idle') return;
+  const tgt = castTargetFor(charging ? castPower : 35, rodDirSmooth);
+  const p = worldToScreen(tgt.x, tgt.z);
+  const pulse = 1 + 0.08*Math.sin(now/180);
+  const rx = (18 + (charging ? castPower : 35)*0.1) * p.s * 2.2 * pulse;
   ctx.save();
-  ctx.translate(cx, cy);
-  ctx.strokeStyle = 'rgba(0,0,0,0.55)'; ctx.lineWidth = 16;
-  ctx.beginPath(); ctx.arc(0,0,r,0,Math.PI*2); ctx.stroke();
-  ctx.strokeStyle = reel.mashProgress > 70 ? '#ffd54f' : '#66bb6a'; ctx.lineWidth = 16; ctx.lineCap = 'round';
-  ctx.beginPath(); ctx.arc(0,0,r, -Math.PI/2, -Math.PI/2 + Math.PI*2*(reel.mashProgress/100)); ctx.stroke();
-  ctx.fillStyle = '#fff'; ctx.font = 'bold 30px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.fillText(Math.round(reel.mashProgress) + '%', 0, 4);
+  ctx.globalAlpha = charging ? 0.85 : 0.4;
+  ctx.strokeStyle = hotspotNear(tgt.x, tgt.z) ? '#69f0ae' : '#ffffff';
+  ctx.lineWidth = 2;
+  ctx.setLineDash([6, 5]);
+  ctx.beginPath(); ctx.ellipse(p.x, p.y, rx, rx*0.36, 0, 0, Math.PI*2); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.beginPath(); ctx.moveTo(p.x - 6, p.y); ctx.lineTo(p.x + 6, p.y); ctx.moveTo(p.x, p.y - 4); ctx.lineTo(p.x, p.y + 4); ctx.stroke();
+  ctx.restore();
+}
+
+/* ----- Wind readout ----- */
+function drawWind() {
+  if (state !== 'idle' && state !== 'casting') return;
+  const w = windSpeed();
+  ctx.save();
+  ctx.fillStyle = 'rgba(0,0,0,0.35)';
+  ctx.fillRect(10, 48, 132, 24);
+  ctx.fillStyle = '#dff4ff'; ctx.font = 'bold 12px sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+  const arrow = Math.abs(w) < 0.2 ? '·' : w > 0 ? '→' : '←';
+  ctx.fillText(`🌬 바람 ${arrow} ${Math.abs(w).toFixed(1)}m/s`, 18, 60);
+  ctx.restore();
+}
+
+/* ----- The hooked fish ----- */
+function drawFightFish(now) {
+  if (!fight || (state !== 'reeling' && state !== 'landing')) return;
+  const f = fight, def = f.def;
+  const p = worldToScreen(f.x, f.z);
+  const len = fishPixelLen(def, p.s);
+  const dir = f.vx >= 0 ? 1 : -1;
+  const t = now / 1000;
+  if (state === 'landing') {
+    // spent fish thrashing on the surface at your feet
+    ctx.save();
+    const big = Math.max(70, len * 1.5);
+    ctx.translate(p.x, p.y - 4);
+    ctx.rotate(Math.sin(t*13) * 0.16);
+    ctx.scale(dir, 1);
+    if (def.rarity === 'mythic') drawMythicAura(ctx, 0, 0, big*0.7, t);
+    drawFishShape(ctx, def, big);
+    ctx.restore();
+    return;
+  }
+  if (f.beh === 'jump') {
+    const k = Math.min(1, f.jumpT / f.jumpDur);
+    const q = fightScreenPos();
+    ctx.save();
+    ctx.translate(q.x, q.y);
+    ctx.scale(dir, 1);
+    ctx.rotate(-Math.cos(k*Math.PI) * 0.8);
+    if (def.rarity === 'mythic') drawMythicAura(ctx, 0, 0, len*0.7, t);
+    drawFishShape(ctx, def, len);
+    ctx.restore();
+    return;
+  }
+  // underwater silhouette: deeper = smaller, fainter, lower
+  const depthY = 8 + f.depth * 30 * p.s;
+  const alpha = 0.7 - f.depth * 0.35;
+  const wag = Math.sin(t * (6 + Math.hypot(f.vx, f.vz) * 3)) * 0.35;
+  ctx.save();
+  ctx.translate(p.x, p.y + depthY);
+  ctx.scale(dir, 0.55);
+  ctx.globalAlpha = alpha;
+  ctx.fillStyle = '#03121a';
+  const L2 = len / 2, h = len * 0.16;
+  ctx.beginPath();
+  ctx.moveTo(L2, 0);
+  ctx.quadraticCurveTo(L2*0.3, -h*1.6, -L2*0.7, -h*0.4);
+  ctx.lineTo(-L2*0.7, h*0.4);
+  ctx.quadraticCurveTo(L2*0.3, h*1.6, L2, 0);
+  ctx.fill();
+  ctx.save();
+  ctx.translate(-L2*0.7, 0); ctx.rotate(wag);
+  ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(-L2*0.4, -h*1.3); ctx.lineTo(-L2*0.4, h*1.3); ctx.closePath(); ctx.fill();
+  ctx.restore();
+  if (def.rarity === 'mythic' || def.rarity === 'boss') {
+    ctx.globalAlpha = alpha * (0.35 + 0.25*Math.sin(t*4));
+    ctx.fillStyle = RARITY[def.rarity].color;
+    ctx.beginPath(); ctx.ellipse(0, 0, L2*1.15, h*2.2, 0, 0, Math.PI*2); ctx.fill();
+  }
+  ctx.restore();
+  // swim-direction arrow + rod-lean feedback
+  if (Math.abs(f.vx) > 0.4) {
+    const ax = p.x + Math.sign(f.vx) * (len*0.5 + 14), ay = p.y + depthY*0.4;
+    ctx.save();
+    ctx.globalAlpha = 0.75;
+    ctx.fillStyle = f.sideGood ? '#69f0ae' : f.sideBad ? '#ff8a80' : '#ffffff';
+    ctx.beginPath();
+    ctx.moveTo(ax + Math.sign(f.vx)*9, ay); ctx.lineTo(ax - Math.sign(f.vx)*3, ay - 6); ctx.lineTo(ax - Math.sign(f.vx)*3, ay + 6);
+    ctx.closePath(); ctx.fill();
+    ctx.restore();
+  }
+}
+
+/* =========================================================
+   Fight HUD: tension dial, line/drag readout, fish stamina, slack/snag meters
+========================================================= */
+function roundRect(x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x+r, y); ctx.arcTo(x+w, y, x+w, y+h, r); ctx.arcTo(x+w, y+h, x, y+h, r);
+  ctx.arcTo(x, y+h, x, y, r); ctx.arcTo(x, y, x+w, y, r); ctx.closePath();
+}
+function drawFightHUD(now) {
+  if (!fight || (state !== 'reeling' && state !== 'landing')) return;
+  const f = fight, g = f.gear;
+  const ratio = f.tension / g.strength;
+  const t = now / 1000;
+
+  // --- stamina bar (top) ---
+  const bw = 300, bx = W/2 - bw/2, by = 64;
+  const conf = RARITY[f.def.rarity];
+  ctx.save();
+  ctx.fillStyle = 'rgba(0,0,0,0.45)'; roundRect(bx - 10, by - 18, bw + 20, 40, 10); ctx.fill();
+  ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+  ctx.fillStyle = conf.color;
+  ctx.fillText(`${starsStr(conf.stars)} ${FIGHT_STYLE_LABEL[f.styleKey] || ''}`, bx, by - 5);
+  ctx.textAlign = 'right'; ctx.fillStyle = '#cfe0ea';
+  ctx.fillText('물고기 체력', bx + bw, by - 5);
+  ctx.fillStyle = 'rgba(255,255,255,0.12)'; roundRect(bx, by, bw, 10, 5); ctx.fill();
+  const sFrac = Math.max(0, f.stamina / f.staminaMax);
+  ctx.fillStyle = sFrac < 0.15 ? '#69f0ae' : sFrac < 0.45 ? '#ffd54f' : '#ff7043';
+  if (sFrac > 0.005) { roundRect(bx, by, Math.max(10, bw * sFrac), 10, 5); ctx.fill(); }
   ctx.restore();
 
-  ctx.fillStyle = '#ffee00'; ctx.font = 'bold 22px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
-  ctx.fillText('연타하세요!! (스페이스바 / 클릭)', cx, cy - 110);
+  // --- slack / snag meters under it ---
+  const warnY = by + 26;
+  const meters = [];
+  if (f.slackT > 0.15) meters.push({ label:'느슨함', v: f.slackT / f.rf.slackLimit, color:'#40c4ff' });
+  if (f.snagT > 0.15) meters.push({ label:'암초', v: f.snagT / 2.5, color:'#26a69a' });
+  meters.forEach((m, i) => {
+    const mx = W/2 - 80, my = warnY + i*16;
+    ctx.save();
+    ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.fillRect(mx - 44, my - 2, 214, 13);
+    ctx.fillStyle = '#fff'; ctx.font = 'bold 10px sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+    ctx.fillText(m.label, mx - 40, my);
+    ctx.fillStyle = 'rgba(255,255,255,0.15)'; ctx.fillRect(mx, my + 1, 160, 8);
+    ctx.fillStyle = m.color; ctx.fillRect(mx, my + 1, 160 * Math.min(1, m.v), 8);
+    ctx.restore();
+  });
 
-  const barW = 240, barX = cx - barW/2, barY = cy + 110;
-  ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(barX, barY, barW, 10);
-  const ratio = Math.max(0, reel.mashTimer / (reel.mashTimerMax || 1));
-  ctx.fillStyle = ratio < 0.3 ? '#ff1744' : '#7fe0ff';
-  ctx.fillRect(barX, barY, barW * ratio, 10);
+  if (state === 'landing') return;
+  // --- tension dial (bottom) ---
+  const cx = 300, cy = H - 34, R = 64;
+  ctx.save();
+  ctx.fillStyle = 'rgba(0,0,0,0.5)'; roundRect(cx - R - 22, cy - R - 26, 2*R + 44 + 190, R + 48, 14); ctx.fill();
+  const arc = (a0, a1, color, w) => { ctx.strokeStyle = color; ctx.lineWidth = w; ctx.beginPath(); ctx.arc(cx, cy, R, Math.PI + a0*Math.PI, Math.PI + a1*Math.PI); ctx.stroke(); };
+  arc(0, 1, 'rgba(255,255,255,0.12)', 12);
+  arc(0, 0.06, '#40c4ff', 12);
+  arc(0.06, 0.55, '#66bb6a', 12);
+  arc(0.55, 0.8, '#ffca28', 12);
+  arc(0.8, 1, '#ff1744', 12);
+  // drag marker
+  const dragF = g.maxDrag * fightInput.drag;
+  const dr = Math.min(1, dragF / g.strength);
+  const da = Math.PI + dr*Math.PI;
+  ctx.fillStyle = dragF >= g.strength ? '#ff5252' : '#ffd54f';
+  ctx.beginPath();
+  ctx.moveTo(cx + Math.cos(da)*(R+8), cy + Math.sin(da)*(R+8));
+  ctx.lineTo(cx + Math.cos(da-0.07)*(R+18), cy + Math.sin(da-0.07)*(R+18));
+  ctx.lineTo(cx + Math.cos(da+0.07)*(R+18), cy + Math.sin(da+0.07)*(R+18));
+  ctx.closePath(); ctx.fill();
+  // needle
+  const v = Math.min(1.04, ratio);
+  const na = Math.PI + v*Math.PI;
+  const flash = ratio > 0.8 && Math.sin(t*30) > 0;
+  ctx.strokeStyle = flash ? '#ffffff' : ratio > 0.8 ? '#ff5252' : '#ffffff';
+  ctx.lineWidth = 3.2; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + Math.cos(na)*(R-4), cy + Math.sin(na)*(R-4)); ctx.stroke();
+  ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(cx, cy, 5, 0, Math.PI*2); ctx.fill();
+  ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+  ctx.fillStyle = '#cfe0ea';
+  ctx.fillText('장력', cx, cy - 36);
+  ctx.font = 'bold 17px sans-serif'; ctx.fillStyle = ratio > 0.8 ? '#ff5252' : '#fff';
+  ctx.fillText(`${Math.round(ratio*100)}%`, cx, cy - 16);
+  // readouts to the right of the dial
+  const tx = cx + R + 30;
+  ctx.textAlign = 'left'; ctx.font = 'bold 12px sans-serif';
+  ctx.fillStyle = f.L > g.capacity*0.85 ? '#ffab40' : '#dff4ff';
+  ctx.fillText(`🧵 풀린 줄 ${f.L.toFixed(1)} / ${g.capacity}m`, tx, cy - 58);
+  ctx.fillStyle = 'rgba(255,255,255,0.12)'; ctx.fillRect(tx, cy - 52, 170, 5);
+  ctx.fillStyle = f.L > g.capacity*0.85 ? '#ffab40' : '#7fe0ff'; ctx.fillRect(tx, cy - 52, 170 * Math.min(1, f.L / g.capacity), 5);
+  ctx.fillStyle = dragF >= g.strength ? '#ff5252' : '#ffd54f';
+  ctx.fillText(`⚙ 드랙 ${Math.round(fightInput.drag*100)}%  (${Math.round(dragF)} / 줄 ${g.strength})`, tx, cy - 30);
+  ctx.fillStyle = fightInput.reeling ? '#69f0ae' : '#9fb8c8';
+  ctx.fillText(fightInput.reeling ? '🎣 릴 감는 중' : '✋ 손 뗌 (줄 유지)', tx, cy - 12);
+  const lean = rodDirSmooth;
+  ctx.fillStyle = f.sideGood ? '#69f0ae' : f.sideBad ? '#ff8a80' : '#9fb8c8';
+  const leanTxt = Math.abs(lean) < 0.2 ? '정면' : lean < 0 ? '◀ 왼쪽' : '오른쪽 ▶';
+  ctx.fillText(`↔ 낚싯대 ${leanTxt}${f.sideGood ? '  측면 압박!' : f.sideBad ? '  방향 반대로!' : ''}`, tx, cy + 6);
+  ctx.restore();
 }
 
-function drawReelUI() {
-  if (state !== 'reeling') return;
-  if (reel.phase === 'mash') { drawMashUI(); return; }
-  const isBoss = currentFish.rarity === 'boss' || currentFish.rarity === 'mythic';
-  const barX = W/2-170, barY = H-130, barW = 340, barH = 24;
-
-  ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(barX,barY,barW,barH);
-  ctx.fillStyle = RARITY[currentFish.rarity].color; ctx.globalAlpha = 0.55;
-  ctx.fillRect(barX+reel.zoneStart*barW, barY, reel.zoneWidth*barW, barH);
-  ctx.globalAlpha = 1;
-  const nx = barX + needleX()*barW;
-  ctx.fillStyle = reel.flashT>0 ? '#fff' : (reel.runActive || reel.finalStand ? '#ff5252' : '#ff1744');
-  ctx.fillRect(nx-2.2, barY-4, 4.4, barH+8);
-  ctx.strokeStyle = isBoss ? '#ff3d3d' : '#fff'; ctx.lineWidth = 2; ctx.strokeRect(barX,barY,barW,barH);
-
-  ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(barX,barY-34,barW,14);
-  ctx.fillStyle = '#66bb6a'; ctx.fillRect(barX,barY-34,barW*(reel.progress/100),14);
-  ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(barX,barY-18,barW,10);
-  ctx.fillStyle = reel.tension>70 ? '#ff1744' : '#e53935'; ctx.fillRect(barX,barY-18,barW*(reel.tension/100),10);
-
-  ctx.fillStyle = '#fff'; ctx.font = 'bold 12px sans-serif'; ctx.textAlign = 'left';
-  ctx.fillText('진행도', barX, barY-38);
-  ctx.fillText('장력', barX, barY-22);
-
-  ctx.textAlign = 'center'; ctx.font = 'bold 13px sans-serif';
-  ctx.fillStyle = RARITY[currentFish.rarity].color;
-  ctx.fillText(`${starsStr(RARITY[currentFish.rarity].stars)}${isBoss ? '  BOSS' : ''}`, W/2, barY-46);
+/* ----- Net timing ring ----- */
+function drawLandingUI(now) {
+  if (state !== 'landing' || !landing || !fight) return;
+  const p = worldToScreen(fight.x, fight.z);
+  const cx = p.x, cy = p.y - 4;
+  ctx.save();
+  ctx.strokeStyle = 'rgba(105,240,174,0.35)'; ctx.lineWidth = landing.window * 2;
+  ctx.beginPath(); ctx.arc(cx, cy, NET_TARGET_R, 0, Math.PI*2); ctx.stroke();
+  ctx.strokeStyle = '#69f0ae'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(cx, cy, NET_TARGET_R, 0, Math.PI*2); ctx.stroke();
+  const r = landingRingR();
+  const inWin = Math.abs(r - NET_TARGET_R) <= landing.window;
+  ctx.strokeStyle = inWin ? '#ffffff' : '#ffd54f'; ctx.lineWidth = inWin ? 5 : 3;
+  ctx.beginPath(); ctx.arc(cx, cy, Math.max(2, r), 0, Math.PI*2); ctx.stroke();
+  ctx.restore();
 }
 
+let lastDrawT = performance.now();
 function draw(now) {
+  const dt = Math.min(0.05, Math.max(0.001, (now - lastDrawT) / 1000));
+  lastDrawT = now;
   ctx.save();
   if (shake > 0) ctx.translate((Math.random()-0.5)*shake, (Math.random()-0.5)*shake);
   drawBackground(now);
+  drawHotspots(now);
   drawRipples();
-  drawLine();
+  drawAimReticle(now);
+  if (fight && fight.beh !== 'jump' && state === 'reeling') drawFightFish(now);
+  drawLine(dt);
   drawBobber();
+  if (fight && (fight.beh === 'jump' || state === 'landing')) drawFightFish(now);
+  drawSplashes();
   drawCastParticles();
-  drawReelUI();
+  drawLandingUI(now);
+  drawWind();
+  drawFightHUD(now);
   ctx.restore();
 }
 
@@ -2890,9 +3736,14 @@ document.querySelectorAll('.regionBtn').forEach(btn => {
   btn.addEventListener('click', () => {
     spot = btn.dataset.region;
     state = 'idle';
+    fight = null; landing = null; charging = false; castPower = 0; rope = null;
+    document.getElementById('powerFill').style.width = '0%';
+    document.getElementById('bossBanner').style.display = 'none';
+    document.getElementById('stageWrap').classList.remove('bossMode', 'mythicMode');
+    hotspots = []; spawnHotspot();
     document.querySelectorAll('.regionBtn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
-    setMsg("스페이스바 또는 버튼으로 캐스팅하세요");
+    setMsg("길게 눌러 캐스팅 · ◀▶로 방향 조준");
   });
 });
 
@@ -3123,19 +3974,27 @@ function renderShop() {
     return;
   }
 
-  const isReel = shopTab === 'reel';
-  const tiers = isReel ? REEL_TIERS : ROD_TIERS;
-  const owned = isReel ? economy.reels : economy.rods;
-  const equipped = isReel ? economy.equippedReel : economy.equippedRod;
+  const gearKinds = {
+    reel: { tiers: REEL_TIERS, owned: 'reels', equipped: 'equippedReel' },
+    rod:  { tiers: ROD_TIERS,  owned: 'rods',  equipped: 'equippedRod' },
+    line: { tiers: LINE_TIERS, owned: 'lines', equipped: 'equippedLine' },
+  };
+  const kind = gearKinds[shopTab];
+  const tiers = kind.tiers;
+  if (!Array.isArray(economy[kind.owned])) economy[kind.owned] = ['basic'];
+  const owned = economy[kind.owned];
+  const equipped = economy[kind.equipped];
 
   for (const tier of tiers) {
     const has = owned.includes(tier.id);
     const isEquipped = equipped === tier.id;
     const card = document.createElement('div');
     card.className = 'shopCard' + (isEquipped ? ' equipped' : '');
-    const effectText = isReel
-      ? `물고기 저항 -${Math.round(tier.tensionCut*100)}%`
-      : `성공 게이지 획득 +${Math.round(tier.gainBoost*100)}%`;
+    const effectText = shopTab === 'reel'
+      ? `감기 ${tier.reelSpeed}m/s · 최대 드랙 ${tier.maxDrag} · 줄 ${tier.capacity}m`
+      : shopTab === 'rod'
+      ? `충격 흡수 ${Math.round(tier.absorb*100)}% · 물고기 체력 소모 +${Math.round(tier.pressure*100)}%`
+      : `줄 강도 ${tier.strength} (이 이상 장력이면 끊어짐)`;
     card.innerHTML = `
       <div class="icon">${tier.icon}</div>
       <div class="name">${tier.name}</div>
@@ -3148,15 +4007,14 @@ function renderShop() {
     else { btn.textContent = '구매'; btn.disabled = economy.credits < tier.price; }
     btn.addEventListener('click', () => {
       if (has) {
-        if (isReel) economy.equippedReel = tier.id; else economy.equippedRod = tier.id;
-        saveEconomy(); renderShop(); queueSyncPush();
+        economy[kind.equipped] = tier.id;
+        saveEconomy(); renderShop(); queueSyncPush(); updateDragLabel();
         setShopStatus(`${tier.name}을(를) 장착했어요.`);
       } else {
         if (economy.credits < tier.price) { setShopStatus('크레딧이 부족해요.'); return; }
         economy.credits -= tier.price;
-        if (isReel) { economy.reels.push(tier.id); economy.equippedReel = tier.id; }
-        else { economy.rods.push(tier.id); economy.equippedRod = tier.id; }
-        saveEconomy(); updateTopStats(); renderShop(); queueSyncPush();
+        owned.push(tier.id); economy[kind.equipped] = tier.id;
+        saveEconomy(); updateTopStats(); renderShop(); queueSyncPush(); updateDragLabel();
         setShopStatus(`${tier.name}을(를) 구매했어요.`);
       }
     });
@@ -3170,6 +4028,7 @@ function activateShopTab(tab) {
   document.getElementById('shopTabSell').classList.toggle('active', tab==='sell');
   document.getElementById('shopTabReel').classList.toggle('active', tab==='reel');
   document.getElementById('shopTabRod').classList.toggle('active', tab==='rod');
+  document.getElementById('shopTabLine').classList.toggle('active', tab==='line');
   document.getElementById('shopTabSkin').classList.toggle('active', tab==='skin');
   document.getElementById('shopTabBait').classList.toggle('active', tab==='bait');
   document.getElementById('shopTabBooster').classList.toggle('active', tab==='booster');
@@ -3179,6 +4038,7 @@ function activateShopTab(tab) {
 document.getElementById('shopTabSell').addEventListener('click', () => activateShopTab('sell'));
 document.getElementById('shopTabReel').addEventListener('click', () => activateShopTab('reel'));
 document.getElementById('shopTabRod').addEventListener('click', () => activateShopTab('rod'));
+document.getElementById('shopTabLine').addEventListener('click', () => activateShopTab('line'));
 document.getElementById('shopTabSkin').addEventListener('click', () => activateShopTab('skin'));
 document.getElementById('shopTabBait').addEventListener('click', () => activateShopTab('bait'));
 document.getElementById('shopTabBooster').addEventListener('click', () => activateShopTab('booster'));
@@ -3551,11 +4411,13 @@ document.getElementById('achClose').addEventListener('click', () => {
    Tutorial guide
 ========================================================= */
 const TUTORIAL_SLIDES = [
-  { icon:'🎣', title:'캐스팅하기', text:'스페이스바 또는 화면 하단 버튼으로 캐스팅하세요. 버튼을 길게 누르면 파워가 차서 더 멀리, 더 좋은 확률로 캐스팅할 수 있어요.' },
-  { icon:'❗', title:'입질 순간!', text:'찌 위에 "!"가 뜨면 그 즉시 스페이스바를 누르거나 화면을 클릭/탭하세요. 너무 늦으면 놓칩니다.' },
-  { icon:'🎯', title:'릴링 (타이밍 맞추기)', text:'바늘이 초록색 구간에 있을 때 스페이스바나 클릭! 구간을 벗어나면 장력이 올라가고, 장력이 가득 차면 줄이 끊어져요.' },
-  { icon:'👑', title:'전설·초대형 어종', text:'별 5개 어종은 게이지가 거의 다 차면 "연타 마무리" 단계가 나와요. 이때는 스페이스바나 클릭을 최대한 빠르게 연타하세요!' },
-  { icon:'🛒', title:'성장과 수집', text:'잡을 때마다 경험치와 크레딧을 얻어요. 상점에서 릴·낚싯대·미끼를 사고, 도감과 업적을 채우고, 🔗 동기화 코드로 어느 기기에서든 이어서 즐기세요.' },
+  { icon:'🎣', title:'캐스팅하기', text:'스페이스바·버튼·화면을 길게 눌렀다 떼면 캐스팅! 오래 누를수록 멀리 날아가요. A/D(◀▶)나 마우스로 좌우를 조준하고, 바람에 밀리는 것도 계산하세요. 물이 끓어오르는 물고기 떼 근처에 던지면 입질이 빨라요.' },
+  { icon:'❗', title:'챔질!', text:'찌 위에 "!"가 뜨면 바로 누르세요. 너무 늦으면 놓칩니다.' },
+  { icon:'🎚️', title:'장력 다이얼', text:'꾹 누르고 있으면 릴을 감아요. 아래쪽 장력 다이얼이 빨간 구간을 넘으면 줄이 끊어지고, 반대로 줄이 너무 느슨한 채로 오래 두면 바늘이 빠져요. 팽팽하지만 끊어지지 않게!' },
+  { icon:'⚙️', title:'드랙 조절', text:'드랙(↑/↓, 휠, −/＋)은 물고기가 당길 때 줄을 내주는 힘이에요. 다이얼의 노란 삼각형이 드랙 위치예요. 높이면 빨리 지치게 하지만 줄 강도를 넘기면 끊어지고, 낮추면 안전하지만 줄이 다 풀릴 수 있어요.' },
+  { icon:'🐟', title:'물고기의 움직임', text:'"⚠ 곧 질주/점프!" 경고가 뜨면 손을 떼세요. 돌진하면 빨리 감고, 파고들면 감아서 버티고, 좌우로 틀면 반대쪽으로 낚싯대를 젖혀 측면 압박! 어종마다 싸우는 스타일이 달라요.' },
+  { icon:'🥅', title:'뜰채로 마무리', text:'체력이 바닥난 물고기를 발밑까지 끌어오면 뜰채 타이밍! 줄어드는 원이 초록 테두리에 겹칠 때 탭하세요. 놓치면 다시 도망가요.' },
+  { icon:'🛒', title:'성장과 수집', text:'잡을 때마다 경험치와 크레딧을 얻어요. 상점에서 릴(감기 속도·드랙·줄 용량), 낚싯대(충격 흡수), 낚싯줄(강도)을 업그레이드하고, 도감·업적을 채우고, 🔗 동기화 코드로 어느 기기에서든 이어서 즐기세요.' },
 ];
 let tutStep = 0;
 function renderTutorial() {
@@ -3625,6 +4487,9 @@ checkAchievements();
 checkDexCompletion();
 applySkin();
 tickEnvState();
+updateDragLabel();
+spawnHotspot();
+setMsg("길게 눌러 캐스팅 · ◀▶로 방향 조준");
 setInterval(tickEnvState, 60*1000);
 ensureSyncCode().then(autoSyncOnLoad);
 requestAnimationFrame(gameLoop);
