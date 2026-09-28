@@ -1,0 +1,78 @@
+/* 쇼츠 공통 디자인 시스템 — 1080x1920, "Midnight + Electric" 톤 */
+@font-face { font-family: "Pretendard"; font-weight: 500; src: url("fonts/Pretendard-Medium.otf"); }
+@font-face { font-family: "Pretendard"; font-weight: 600; src: url("fonts/Pretendard-SemiBold.otf"); }
+@font-face { font-family: "Pretendard"; font-weight: 700; src: url("fonts/Pretendard-Bold.otf"); }
+@font-face { font-family: "Pretendard"; font-weight: 800; src: url("fonts/Pretendard-ExtraBold.otf"); }
+@font-face { font-family: "Pretendard"; font-weight: 900; src: url("fonts/Pretendard-Black.otf"); }
+
+:root {
+  --bg: #07070c;
+  --surface: #12121c;
+  --surface-2: #1b1b29;
+  --line: rgba(255, 255, 255, 0.09);
+  --ink: #f7f7fb;
+  --sub: #9a9ab3;
+  --violet: #8b5cf6;
+  --cyan: #22d3ee;
+  --lime: #d4ff3a;
+  --danger: #ff4d6d;
+  --grad: linear-gradient(95deg, #a78bfa 0%, #22d3ee 100%);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { width: 1080px; height: 1920px; overflow: hidden; background: var(--bg); }
+body {
+  font-family: "Pretendard", sans-serif; color: var(--ink);
+  letter-spacing: -0.035em; word-break: keep-all; -webkit-font-smoothing: antialiased;
+}
+
+/* 배경: 은은한 오로라 + 그리드 */
+.bg { position: absolute; inset: 0; overflow: hidden; }
+.bg .orb { position: absolute; border-radius: 50%; filter: blur(140px); opacity: .55; }
+.bg .o1 { width: 900px; height: 900px; left: -380px; top: 380px; background: #5b21b6; }
+.bg .o2 { width: 800px; height: 800px; right: -380px; top: 900px; background: #0e7490; }
+.bg .grid {
+  position: absolute; inset: 0; opacity: .5;
+  background-image: linear-gradient(var(--line) 1px, transparent 1px), linear-gradient(90deg, var(--line) 1px, transparent 1px);
+  background-size: 72px 72px;
+  mask-image: radial-gradient(ellipse 80% 60% at 50% 50%, #000 30%, transparent 75%);
+}
+
+/* 상단 고정 헤더 바: 질문형 제목 (영상 내내 유지) */
+.top { position: absolute; top: 0; left: 0; right: 0; height: 500px; background: #000;
+  display: flex; align-items: flex-end; justify-content: center; padding-bottom: 64px; text-align: center; }
+.headline { font-size: 104px; line-height: 1.16; font-weight: 900; letter-spacing: -0.04em; }
+.headline .g { background: var(--grad); -webkit-background-clip: text; color: transparent; }
+
+.progress { position: absolute; top: 494px; left: 0; right: 0; height: 6px; background: rgba(255,255,255,.08); z-index: 2; }
+.progress > div { height: 100%; width: 0; background: var(--grad); }
+
+/* 가운데 비주얼 무대 */
+.stage { position: absolute; top: 590px; left: 50px; width: 980px; height: 680px; }
+.beat, .cap { position: absolute; opacity: 0; will-change: transform, opacity; }
+.beat { inset: 0; display: flex; align-items: center; justify-content: center; }
+
+.card {
+  width: 100%; height: 100%; border-radius: 44px; padding: 56px;
+  background: linear-gradient(180deg, rgba(255,255,255,.07), rgba(255,255,255,.02));
+  border: 1.5px solid rgba(255,255,255,.12);
+  box-shadow: 0 40px 120px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.08);
+  backdrop-filter: blur(20px); position: relative; overflow: hidden;
+}
+
+/* 하단 자막 */
+.captions { position: absolute; top: 1325px; left: 60px; right: 60px; height: 200px; }
+.cap { inset: 0; display: block; text-align: center;
+  font-size: 80px; line-height: 1.2; font-weight: 900;
+  -webkit-text-stroke: 14px #000; paint-order: stroke fill; text-shadow: 0 8px 30px rgba(0,0,0,.7); }
+.cap b { font-weight: 900; color: var(--lime); }
+.cap b.r { color: var(--danger); }
+
+/* 공통 소품 */
+.chip { display: inline-flex; align-items: center; gap: 12px; padding: 16px 30px; border-radius: 99px; font-size: 38px; font-weight: 800;
+  background: var(--surface-2); border: 1.5px solid var(--line); }
+.label { font-size: 30px; font-weight: 700; color: var(--sub); letter-spacing: 0.02em; }
+.pop { opacity: 0; }
+.check { width: 64px; height: 64px; border-radius: 50%; background: var(--lime); display: grid; place-items: center; flex: none; }
+.check svg { width: 38px; height: 38px; }
+.source { position: absolute; top: 1560px; left: 0; right: 0; text-align: center; font-size: 26px; font-weight: 600; color: rgba(255,255,255,.4); }
